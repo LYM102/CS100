@@ -122,20 +122,20 @@ liym2024@shanghaitech.edu.cn'\0'
 
    - 第二种方法
    ```c
-   #include <stdio.h>
-   int main()
-   {
-      char *str[3] = {
-         "liym2024@shanghaitech.edu.cn",
-         "3987412763@qq.com",
-         "17775756985"};
-      for (int i = 0; i < 3; i++)
-      {
-         char *strx = str[i];
-         printf("%s\n", strx);
-      }
-      return 0;
-   }
+    #include <stdio.h>
+    int main()
+    {
+        char *str[3] = {
+            "liym2024@shanghaitech.edu.cn",
+            "3987412763@qq.com",
+            "17775756985"};
+        for (int i = 0; i < 3; i++)
+        {
+            char *strx = str[i];
+            printf("%s\n", strx);
+        }
+        return 0;
+    }
    ```
    - 主要区别
 
@@ -199,3 +199,171 @@ int main()
     printf("%s\n", str2);
 }
 ```
+## 结构体
+- 结构体可以理解为自定义的数据类型，他是由一批数据组合成为的结构性数据。
+```c
+struct 结构体名称
+{
+   成员1;
+   成员2;
+   ···
+}
+```
+```c
+#include <stdio.h>
+#include <string.h>
+struct GirlFriend
+{
+    char name[100];
+    int age;
+    char gender;
+    double height;
+};
+struct Student
+{
+   char name[30];
+   int age;
+   double height;
+}
+int main()
+{
+    /*
+        结构体：
+            自定义的数据类型
+            就是由很多的数据组合成为的一个整体
+            每一个数据，都是结构体的成员
+        书写的位置：
+            函数里面：局部位置只能在本函数中使用
+            函数外面：在所有的函数中都可以使用
+    */
+   // 使用结构体
+   // 定义一个类型的变量
+   struct GirlFriend gf1;
+   strcpy(gf1.name, "aaa");//字符串的赋值需要注意
+   gf1.age = 21;
+   gf1.gender = 'F';
+   gf1.height = 1.63;
+   //---------------------------------
+   struct Student stu1 = {"Sam",18,175.26};
+   struct Student stu2 = {"Lily",17,16.35};
+   struct Student strArr[2] = {stu1,stu2};
+   // 遍历每一个元素
+   for(int i = 0;i < 2; i++)
+   {
+      struct Student temp = strArr[i];
+      printf("%s %d %lf",temp.name,temp.age,temp.height);
+   }
+   return 0;
+}
+```
+### 结构体的别名
+```c
+typedef struct (Name)//name可以写也可以不写
+{
+   char name[100];
+   int age;
+   char gender;
+   double height;
+}GF;
+```
+```c
+#include <stdio.h>
+#include <string.h>
+typedef struct Ultram
+{
+    char name[100];
+    int attack;
+    int defense;
+    int blood;
+} M;
+
+int main()
+{
+    M taro = {"Laitor", 100, 90, 500};
+    M rem = {"rem", 90, 80, 450};
+    M arr[2] = {taro, rem};
+    for (int i = 0; i < 2; i++)
+    {
+        M temp = arr[i];
+        printf("%s %d %d %d\n", temp.name, temp.attack, temp.defense, temp.blood);
+    }
+    return 0;
+}
+```
+- 相当于在这里我们将`struct Ultram`改成了`M`.
+### 结构体作为函数的参数
+```c
+#include <stdio.h>
+#include <string.h>
+#include <stdbool.h>
+
+typedef struct Student
+{
+    char name[30];
+    int age;
+} stu;
+void change(stu *st);
+int main(void)
+{
+    stu stu1;
+    strcpy(stu1.name, "Liyiming");
+    stu1.age = 18;
+    change(&stu1);
+    printf("The name of stu1 is %s\n", stu1.name);
+    printf("The age of stu1 is %d\n", stu1.age);
+    return 0;
+}
+void change(stu *st)
+{
+    printf("The name of stu1 is %s\n", (*st).name);
+    printf("The age of stu1 is %d\n", (*st).age);
+    scanf("%s", (*st).name);
+    scanf("%d", &(*st).age);
+}
+```
+### 结构体的嵌套
+```c
+#include <stdio.h>
+#include <string.h>
+#include <stdbool.h>
+struct Message
+{
+    char phone[12];
+    char school_mail[100];
+};
+
+typedef struct Student
+{
+    char name[30];
+    int age;
+    struct Message msg;
+} stu;
+
+void change(stu *st);
+int main(void)
+{
+    stu stu1;
+    strcpy(stu1.name, "Liyiming");
+    stu1.age = 18;
+    strcpy(stu1.msg.phone, "17775756985");
+    strcpy(stu1.msg.school_mail, "liym2024@shanghaitech.edu.cn");
+    change(&stu1);
+    printf("%s", stu1.msg.school_mail);
+    return 0;
+    /*
+    stu stu2 = {"Liyiming",18,{"17775756985","liym2024@shanghaitech.edu.cn"}};
+    */
+}
+void change(stu *st)
+{
+    scanf("%s", (*st).msg.school_mail);
+}
+```
+### 结构体的内存对齐
+- 确定变量的位置：
+    1. 总体上还是按照定义的顺序从前到后的安排内存地址
+    2. 每一个变量只能放在自己类型整数倍的内存地址上（中间空出来的字节会被补位空白字符）
+- 最后一个补位：结构体的总大小，是最大类型的整数倍
+- 补位并不会改变相应的类型的变量的大小
+- 其实不只是在结构体中，只要是储存变量就会存在内存对齐的情况
+- 综上：我们将小的数据类型写在上面，大的数据类型写在下面（节省空间）
