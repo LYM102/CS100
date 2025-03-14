@@ -1,4 +1,7 @@
-# C_beginning_1
+# C_Beginning
+> This passage is created by YiMing Li(SHTU)
+
+> 纸上得来终觉浅，绝知此事要躬行
 ## C语言中常见的未定义行为（C11）
 ### 什么叫做未定义
 未定义行为(undefined behavior)(简称 UB)指编译器允许编译, 但是语言标准中没有定义的行为. 这种现象的出现并不是语言标准不完善, 而是因为这种行为在编译时无法检查其错误或者受限于具体的 cpu 指令以及操作系统优化等使其会有在编译时不可预知的运行结果.
@@ -16,17 +19,11 @@ void func()
 }
 ```
 而至于 `array[5]` 到底会访问到什么取决于操作系统和编译器. 例如 windows 平台的 msvc 编译器的 debug 模式会将所有未初始化内存都用特定值来充填, 在未初始化内存的边缘会用另一个值来充填(详见烫烫烫屯屯屯问题). 但是在 linux 平台的 gcc 中此时只会访问到一个普通的未初始化内存, 因此其值是不可预期的.
+
+和数组越界一样的还存在**定义字符串的时候没有存在结束符**的时候，在打印的时候会一直打印，直到看到结束符，所以如果不服你在结束符的时候就会产生越界地情况。
+
 #### 修改字符串字面量
 字面量(literal)是写在源代码中的表示固定值的符号(token). 平时俗称的硬编码(hard coding)大多数时候就是在说字面量(有时指常量). 举个例子
-```c
-const int var1 = 1;
-int var2 = 1;
-var2 = 2;
-```
-其中 `var1` 是常量, `var2` 是变量, 1 是字面量.
-
-基本类型的字面量在机器码里也是字面量. 修改字符串字面量说的是这种情况
-
 ```c
 char *string = "Hello";
 string[0] = 'h';
@@ -100,7 +97,7 @@ array[i] = i++;
 int *ptr = NULL;
 printf("%d\n",*ptr);
 ```
-#### 为初始化的局部变量
+#### 未初始化的局部变量
 当我们使用未初始化的局部变量时，其值是未定义的，因此会导致未定义行为。例如：
 ```c
 int x;
@@ -201,7 +198,7 @@ if (result == EOF) {
 ### 不同类型的字节大小
 | 数据类型              | 32位 | 64位 | 说明                                                                 |
 |:---------------------:|:----:|:----:|:-------------------------------------------------------------------:|
-| `char`                | 1    | 1    | 始终为 1 字节，表示单个字符。                                        |
+| `char`                | 1    | 1    | **始终为 1 字节**，表示单个字符。                                        |
 | `short int`           | 2    | 2    | 通常为 2 字节，表示短整数。                                          |
 | `int`                 | 4    | 4    | 通常为 4 字节，表示整数。                                            |
 | `long int`            | 4    | 8    | 在 32 位系统中通常为 4 字节，在 64 位系统中通常为 8 字节，表示长整数。|
@@ -488,10 +485,563 @@ start_game_called = true;
     int *ptr6 = &2;//错误的定义方式
     int *ptr7 = &(2*a);//错误的定义方式
 ```
-- 这里的指针指向的内容必须要是一个左值（表示能够写在左侧的值）`int c = a+b`这里的`c`就是左值。
-- 空指针是正确的但是空指针不能够解引用（这样也就导致了空指针是不能够赋值的）打印空指针的内容可以看到`0000000000000000`,因此为了避免空指针的使用，我们常常这么写：
+
+这里的指针指向的内容必须要是一个左值（表示能够写在左侧的值）`int c = a+b`这里的`c`就是左值。
+
+空指针是正确的但是空指针不能够解引用（这样也就导致了空指针是不能够赋值的）打印空指针的内容可以看到`0000000000000000`,因此为了避免空指针的使用，我们常常这么写：
 ```c
 if (ptr != NULL && *ptr == 42) { /* ... */ }
 ```
 这样如果指针式空的，那么后面解引用的过程就不会发生
 - 野指针：野指针表示的就是没有初始值的指针，这一些指针因为不知道具体值以及地址所以几乎不能够使用，这也是未定义的行为中的一种。
+- 悬垂指针：表示的是已经释放内存地址的指针，同样的这个也是不好的
+
+例子：
+```c
+#include <stdio.h>
+int * method(void);
+int main()
+{
+    int *p = method();
+    return 0;
+}
+int * method(void)
+{
+    int p = 10;
+    int *p = &p;
+    return *p;
+}
+```
+
+解释：因为在函数中的元素在函数外部将会释放它的内存地址，因此`method`传出的参数在函数的外部会将所储存的元素释放。
+### `const`指针
+```c
+#include <stdio.h>
+int main()
+{
+    int a = 20;
+    int b = 10;
+    int const *p1 = &a; // const int *p1 = &a;
+    p1 = &b;
+    // *p1 = 10;    Error! the pointer is read-only
+    // a = 10; Correct!
+    printf("%d", *p1);//Prints 10
+}
+```
+`const int *ptr`表示的是这个指针受到保护，不能够通过这个指针来修改变量的数值。但是可以通过改变指针所指向的对象来进行修改（可以指向另外一个变量）或者是直接改变变量a来进行修改这个和`int const*p1 = &a;`的结果是一样的。
+```c
+#include <stdio.h>
+int main()
+{
+    const int a = 20;
+    int b = 10;
+    int *p1 = &a;
+    p1 = &b;// Warning
+    *p1 = 10;//Warning
+    printf("%d", *p1); // Prints 10
+}
+```
+可以通过指针来改变`const int`的内容，这里编译器报警，但是不会导致程序不运行，这里相当于使用`*p1`对`const int`所做的操作都是检查不出问题的（这是`UNdefined Behaviors`）
+
+如果我们希望这个指针只能指向这一个变量而不能够指向其他的变量，那么我们应该使用`int *const pc`来确定一个`Top-locked pointer`
+```c
+int x = 42;
+int *const pc = &x;
+++*pc; // OK.
+int y = 30;
+pc = &y; // Error
+```
+在这个例子中我们注意到，这里的指针不能够通过赋值其他的变量的地址来进行对指针内容进行修改，但是可以通过指针来修改变量的数值，也可以直接对变量的内容进行修改（变量没有受到`const`的限制）
+
+所以这样的话我们有最高的上锁的指针
+`const int *const cipc = &x`也就是说不能够对他赋值，也不能够转换指针指向的对象。
+
+### `void*`
+`void*`表示的是一个知识指向地址的指针。所以`void*`可以转换成为任意类型的指针，而任何其他的指针也能够转换成`void*`
+
+## 数组与指针
+### 数组的基本知识
+- 数组只能够通过对其中的元素赋值来修改,不能够在`main`函数中使用`b = {1,2,3}`这样的方式进行赋值
+- 数组的类型是`int [M]`而不是`int *`虽然在使用的时候他会转换成为首地址的形式
+- 数组在函数中表示的首地址只能够获取不能够修改，相当于`const int *p`,但是与之不同的是，可以通过解引用的方式对`arr`的首元素进行修改,即`*arr`相当于`arr[0]`.
+```c
+#include <stdio.h>
+int main()
+{
+    int arr_1[] = {1, 2, 4, 5, 6};
+    int arr_2[] = {7, 8, 9};
+    // arr_1 = arr_2;这样是错误的，因为数组的首地址是不能够修改的
+    int *p1 = arr_1;
+    int *p2 = arr_2;
+    void *temp;
+    temp = p1;
+    p1 = p2;
+    p2 = (int *)temp;
+    for (int i = 0; i < 3; i++)
+        printf("%d", p1[i]);//prints 789
+}
+```
+- 如果要通过指针的形式来遍历数组，请使用指针变量来接受数组的地址。
+- 数组的初始化
+  - `int arr[100] = {1}`:表示的是第一个元素为`1`，后面的元素都是`0`.
+  - `char arr[100] = "1"`：表示的是第一个元素为`'1'`后面的元素是`'\0'`，因为`'\0'`的ASCII码为0.
+### 二维数组的定义
+```c
+#include <stdio.h>
+int main()
+{
+    arr[2][4] = 
+    {
+        {1,2,3,4},
+        {3,4,5,6}
+    };
+}
+```
+```c
+#include <stdio.h>
+{
+    int arr1[4] = {1,2,3,4};
+    int arr2[4] = {3,4,5,6};
+    int *arr[2] = {arr1,arr2};
+    // 解释:int* 表示存放的内容是指针,arr 表示的是这个指针数组的名称叫做arr.
+}
+```
+
+区别，第一种规定的两个数组的长度应该相同，但是第二种对两个数组的长度没有限制。注意，这个时候的占用空间就变成有其中的指针的占用空间了。
+
+
+### 使用指针来遍历二维数组
+定义`int arr[3][5]`的指针：`int (*p)[5] = arr;`,解释：因为`int [5]`表示的是指针所指的是一个长度为5的一个类型(也就是所指的是数组的首地址)，`*p`表示的是这是一个指针，并且指针的名称为`p`.
+
+其中这里的`arr + 1`表示的是移动`int [5]`个单位，也就是说直接移动的长度是`arr`中整个子数组的长度
+
+```c
+int (*p)[5] = arr;
+for (int i = 0; i < 3;i++)
+{
+    for (int j = 0; j < 5; j++)
+    {
+        printf("%d ",(*p)++);
+    }
+    p++;
+}
+```
+
+如果是按照`int *arr[2] = {arr1,arr2};`来定义的二维数组的话`int **p = arr;`这里指向的类型是`arr`的首地址，也就是`arr1`，即指向`int`的指针。
+
+遍历的过程当中要注意
+```c
+int **p = arr;//这里是指向指针的指针，因为这里的arr表示的是一个指针的数组
+for (int i = 0; i < 3; i++)
+{
+    for (int j = 0; j < len[i]; j++)
+    {
+        printf("%d ", *(*p + j));
+    }
+    p++;//移动到其中一个元素的长度（也就是移动一个指针的长度,指向的就是第二个指针的首地址，也就是arr2的首地址）
+    printf("\n");
+}
+```
+
+首先应当先解引用`*p`，现在`*p`表示的是`arr1`的首地址，也就是第一个元素，然后通过指针的运算获得后面的元素的地址 ，随后在进行解引用得到他所拥有的数据，在内层循环外部通过`p++`表示加上一个指针的长度，这样就可以有效的过渡到第二个数组`arr2`,因此这么写是✔
+
+为什么使用指针接受数组可以`p++`操作，但是如果是直接`arr++`就不行？
+
+因为如果是`int *p = arr`,这里的`p`是一个指针的变量，可以进行操作，但是`arr`是一个固定的地址，表示的是指向数组首地址的指针，这个是不能够操作的。
+
+- 数组指针和指针数组
+    1. 数组指针：指向数组的指针
+       1. 一维数组：`int *p = arr`,步长为`sizeof(int)`
+       2. 二维数组：`int (*p)[5] = &arr(arr)`步长为`sizeof(int arr[5])`
+    2. 指针数组：存放指针的数组`int *arr = {arr1,arr2};``int *p[5]`
+### 数组作为指针传递到函数中
+```c
+void fun(int *a);
+void fun(int a[]);
+void fun(int a[10]);
+void fun(int a[2]);
+```
+这一些都是正确的这里的`a`都是作为指针`int *`
+
+同样的，二维数组也可以作为参数传递到函数中
+```c
+void fun(int (*a)[N]);
+void fun(int a[][N]);
+void fun(int a[2][N]);
+void fun(int a[10][N]);
+// 因为这个地方的a[M]都会被隐式转换成为(*a)
+```
+这一些都是可以的
+## 动态内存
+计算机中存在多个内存的区域，其中最常见的区域是栈(stack)和堆(heap)
+
+stack的内存由编译器自动管理。stack内存的分配和释放速度都非常快，因为他遵循后进先出的原则，但是他的内存通常较小，而且是固定的
+
+heap内存通过程序员手动管理，使用`malloc`,`calloc`,`new`等函数的分配，使用`free`,`delete`进行删除。
+### `malloc`函数
+在`<stdlib.h>`中的定义`void * malloc(size_t size)`
+
+其中的`size_t`的变量就相当于`unsigned int`.
+```c
+T *ptr = malloc(sizeof(T)*n);
+for (int i = 0;i!=n;i++)
+{
+    ptr[i] = ····
+}
+free(ptr);
+```
+### 使用`malloc`函数申请一个数组
+- 一维数组
+```c
+#include <stdio.h>
+#include <stdlib.h>
+int main()
+{
+    int *arr = malloc(sizeof(int) * 5);
+    for (int i = 0; i < 5; i++)
+    {
+        arr[i] = i;
+    }
+    for (int i = 0; i < 5; i++)
+    {
+        printf("%d ", arr[i]);
+    }
+    free(arr);
+    return 0;
+}
+```
+- 二维数组
+  - 使用连续申请的方式来进行申请
+    ```c
+    #include <stdio.h>
+    #include <stdlib.h>
+    int main()
+    {
+        int **arr = malloc(sizeof(void *) * 3);
+        for (int i = 0; i <= 3; i++)
+            arr[i] = malloc(sizeof(int) * 5);
+        for (int i = 0; i < 3; i++)
+        {
+            for (int j = 0; j < 5; j++)
+                arr[i][j] = 3 * i * j;
+        }
+        for (int i = 0; i < 3; i++)
+        {
+            for (int j = 0; j < 5; j++)
+                printf("%d ", arr[i][j]);
+            putchar('\n');
+        }
+        for(int i = 0;i<3;i++)
+            free(arr[i]);//释放每一行内存
+        free(arr[i]);//释放储存指针的数组
+        return 0;
+    }
+    ```
+  - 使用计算的方式来申请
+    ```c
+    int *p = malloc(sizeof(int) * n * m);
+    for (int i = 0; i < n; ++i)
+        for (int j = 0; j < m; ++j)
+            p[i * m + j] = /* ... */ // This is the (i, j)-th entry.
+    // ...
+    free(p);
+    ```
+#### `malloc()`的返回值
+- 当`malloc`尝试分配一块非常大的内存的时候，如果系统没有足够的(heap)来存放内存，`malloc`就会返回一个空指针，可以通过确定返回的指针是否是空指针来确定是否存在充足的内存可以使用
+```c
+#include <stdio.h>
+#include <stdlib.h>
+
+int main() {
+    // 尝试分配一个非常大的内存块
+    int *ptr = (int *)malloc(1ull << 60); 
+    if (!ptr) {
+        // 检查是否分配失败
+        fprintf(stderr, "Out of memory.\n"); 
+    }
+    if (ptr) {
+        free(ptr); // 如果分配成功，释放内存
+    }
+    return 0;
+}
+```
+### `calloc`函数
+- `void *calloc(size_t num,size_t each_size);`和`malloc(num*each_size)`相同的含义，但是他将所有的内容都初始化为相应的空元素（`int : 0 ;char:'\0'`）
+### `free`函数
+`free`函数的作用是释放内存，但是需要注意的是，`free`函数只能释放由`malloc`,`calloc`,`new`等函数申请的内存，不能释放其他的内存。
+- 注意`free`不能够重复释放内存（**未定义行为**）
+- `free`不能够一个一个地释放`malloc`出来的相应的地址
+- 在调用`free`函数之前不需要进行检查，因为`free(NULL)`是安全的们不会导致任何错误，然而这部不意味着可以重复调用`free`函数。
+### 传入0个需要分配的空间会怎样？
+- `malloc(0)`的行为是由编译器决定的。这意味着不同的编译器可能存在不同的处理方式。他可能返回一个空指针，表示没有分配任何内存；也可能返回一个非空的指针。这样也会导致内存泄露的问题，因为如果返回了一个非空的指针，而这个时候你没有使用`free`函数将这一块空间释放，这样就会导致内存泄漏。
+- 和`malloc`一样`calloc(0,N);`也是根据编译器来选择不同行为的。
+- `free(NULL)`是安全的，不会产生任何副作用，但是不能够重复释放同一个内存。
+
+## 字符串
+### 字符串与`\0`
+- `\0`表示的是字符串的结束，在使用`char str[15] = "This is me"`来储存字符的时候一定要考虑到`\0`算作其中的一个元素（如果少了会导致在输出的时候存在**未定义行为**）。
+- 同样的`printf("%s",str);`的时候会在`\0`的地方停下来，所以如果没有`\0`的时候就会导致未定义行为（数组越界）
+- `char empty[] = "";`这里`empty`的大小是1，因为要包括`\0`.
+- 字符串的读入和修改
+```c
+char str[100] = "abcdef";
+scanf("%s",str);//reads "123" ,str becomes {'1','2','3','\0','e','f'}
+printf("%s",str);//prints "123"
+```
+`scanf()`函数**并不安全**，`scnaf()`在读取字符串的时候仅仅是将它转换成为了一个指针来传递，并不知道这个字符串的大小，所以不能够检查时候会超过`char str[10]`的内部的空间。
+
+### `gets`与`fgets`
+`gets`没有边界检查，所以不推荐使用，和`gets`一样的有`get_s`但是这个斌不是在所有的编译器中都能使用的。
+
+`fgets`是一个更加安全的函数，它的使用方法是
+```c
+char str[100];
+fgets{str,100,stdin};
+```
+这里的`fgets`就只会最多读取99位字符。
+
+According to the cppreference documentation for `fgets`:
+
+It reads at most `size -1`characters.Here `size`is the number of elements specified as an arguement(typically the size of the buffer).This leaves space for the null terminator(\0).
+
+It stops unber one of these conditions:
+- When it reads a newline characters
+- when it reaches the end of the file
+- When it has read `size-1`characters
+### [字符串的相关函数](https://zh.cppreference.com/w/c/string/byte)
+在`<ctype.h>`中定义的
+- `islower`:检查是否是小写字符，如果是小写字母，返回非零值；否则返回 0。
+- `isupper`:检查是否是大写字母，若为大写字母，返回非零值；反之返回 0。
+- `isspace`:该函数用于检查字符是否为空白字符，空白字符包括空格、制表符、换行符等。如果是空白字符，返回非零值；否则返回 0。
+- `ispunct`:此函数用于检查字符是否为标点字符。若为标点字符，返回非零值；反之返回 0
+- `tolower`:该函数用于将大写字母转换为小写字母。如果传入的字符是大写字母，则返回对应的小写字母；否则返回原字符。
+- `toupper`:此函数用于将小写字母转换为大写字母。若传入的字符是小写字母，则返回对应的大写字母；否则返回原字符。
+
+在`<stdlib.h>`中定义
+- **`strto+'···'`**:
+    - `strtol`:The function prototype is `long strtol(const char *nptr,char **endptr,int base)`.It converts a string to a `long long` value in the specified `base`(radix,ranging from 2 to 36,or 0 for auto-detection).(字符串一开始`0`表示八进制，字符串一开始`0x`表示16进制)It skips leading whitespce,starts conversion at digits/signs,and stops at non-digit characters or `\0`,If `endptr` isn't `NULL`,it stores the pointer to the character after the conversion end.(`endptr`表示的就是遇到第一个不满足条件的字符，随后停止转换，如果这里写`NULL`,表示遇到不满足的条件的时候直接返回`NULL`,没有指针指向它)
+    - `strtoul`:`unsigned long strtoul(const char *nptr,char **endptr ,int base)`
+    - `strtoull`:`unsigned long long strtoull (const char*nptr,char**endptr,int base)`
+    - `strof`:`double strtod(const char *nptr,char **endptr)`这里就不存在转换进制的功能。
+    - `strtold`:`long double strtole(const char *nptr,char **endptr)`
+
+- `snprintf`:`snprintf(str,sizof(str),"%f",num);`根据字符串`format`格式将数据格式化输出到`str`中，最多写入`size-1`个字符串，并且在末尾添加上`'\0'`.
+
+在`<string.h>`中定义
+- `strcpy(dest,src)`将字符串`src`复制到`dest`中。包含结束符`'\0'`.
+- `strncpy(dest,src,5);`从源字符串 src 复制最多 n 个字符到目标字符串 dest 中。如果 src 的长度小于 n，则用 '\0' 填充 dest 直到复制了 n 个字符；如果 src 的长度大于等于 n，则**不会**在 dest 末尾添加 '\0' *If `dest` and `src` point to the same memory address, `strcpy` will still work correctly because it copies the `null` terminator (`\0`) from `src` to `dest`. The result will be the same string in the same memory location.*
+- `strcat(dest,src)`将源字符串 src 连接到目标字符串 dest 的末尾，覆盖 dest 末尾的 '\0'，并在连接后的字符串末尾添加新的 '\0'。
+- `strncat(dest,src,3)`将源字符串 src 的最多 n 个字符连接到目标字符串 dest 的末尾，并在连接后的字符串末尾添加 '\0'。如果 src 的长度小于 n，则将整个 src 连接到 dest 末尾。
+- `size_t len = strlen(str)`返回给定的字符串的长度(不包括`'\0'`)注意`strlen()`的运算速度很慢，不要总是调用这个函数。
+- `strcmp(s1,s2)`比较两个字符串 s1 和 s2 的大小。如果 s1 小于 s2，返回一个负数；如果 s1 等于 s2，返回 0；如果 s1 大于 s2，返回一个正数。(*The result of the result is not limited to -1,0,or 1*.)
+- `strchr`查找第一次出现的指定元素，并返回`char *`类型的地址
+- `strrchr`查找最后一次出现的指定元素
+- `strstr(haystack,needle)`在字符串 haystack 中查找子字符串 needle 首次出现的位置，并返回指向该位置的指针。如果未找到，则返回 NULL。
+
+Some tips:Overlapping memory:
+
+- `strcpy` with overlapping memory:
+
+    *This is **undefined behavior**. The C standard does not guarantee correct behavior when memory regions overlap. The function might overwrite parts of the source string before copying them.*
+- `strncpy` with overlapping memory:
+
+    *This is also **undefined behavior**. While strncpy limits the number of characters copied, it still doesn't handle overlapping memory safely.*
+- `strcat` with overlapping memory:
+
+    *This is **undefined behavior.** strcat first finds the end of dest and then appends src. If the memory regions overlap, it might overwrite parts of src before copying them.*
+### Can or Cannot change?
+```c
+#include <stdio.h>
+int main()
+{
+    char *str_1 = "Liyiming";
+    char str_2[] = "Liyiming";//It copies the whole string to the array `str_2`.
+    str_1[4] = 'M'//No compile-error,but undefined behaviors.The string connot change
+    str_2[4] = 'M'//Correct! The array can change.
+    return 0;
+}
+```
+The change of the string can lead to the severe runtime-error.
+
+There are some ways to protect it:
+```c
+const char *str = "abcde";
+str[3] = 'a';//compile error
+```
+### Array of strings
+```c
+const char *translations[] = {
+        "zero", "one", "two", "three", "four",
+        "five", "six", "seven", "eight", "nine"};
+```
+Notes that `translation` is an array of pointers, where each pointer points to a string literal.`translations` is not a 2-d array.
+## Struct
+- 结构体可以理解为自定义的数据类型，他是由一批数据组合成为的结构性数据。
+```c
+struct 结构体名称
+{
+   成员1;
+   成员2;
+   ···
+}
+```
+```c
+#include <stdio.h>
+#include <string.h>
+struct GirlFriend
+{
+    char name[100];
+    int age;
+    char gender;
+    double height;
+};
+struct Student
+{
+   char name[30];
+   int age;
+   double height;
+}
+int main()
+{
+    /*
+        结构体：
+            自定义的数据类型
+            就是由很多的数据组合成为的一个整体
+            每一个数据，都是结构体的成员
+        书写的位置：
+            函数里面：局部位置只能在本函数中使用
+            函数外面：在所有的函数中都可以使用
+    */
+   // 使用结构体
+   // 定义一个类型的变量
+   struct GirlFriend gf1;
+   strcpy(gf1.name, "aaa");//字符串的赋值需要注意
+   gf1.age = 21;
+   gf1.gender = 'F';
+   gf1.height = 1.63;
+   //---------------------------------
+   struct Student stu1 = {"Sam",18,175.26};
+   struct Student stu2 = {"Lily",17,16.35};
+   struct Student strArr[2] = {stu1,stu2};
+   // 遍历每一个元素
+   for(int i = 0;i < 2; i++)
+   {
+      struct Student temp = strArr[i];
+      printf("%s %d %lf",temp.name,temp.age,temp.height);
+   }
+   return 0;
+}
+```
+### 结构体的别名
+```c
+typedef struct (Name)//name可以写也可以不写
+{
+   char name[100];
+   int age;
+   char gender;
+   double height;
+}GF;
+```
+```c
+#include <stdio.h>
+#include <string.h>
+typedef struct Ultram
+{
+    char name[100];
+    int attack;
+    int defense;
+    int blood;
+} M;
+
+int main()
+{
+    M taro = {"Laitor", 100, 90, 500};
+    M rem = {"rem", 90, 80, 450};
+    M arr[2] = {taro, rem};
+    for (int i = 0; i < 2; i++)
+    {
+        M temp = arr[i];
+        printf("%s %d %d %d\n", temp.name, temp.attack, temp.defense, temp.blood);
+    }
+    return 0;
+}
+```
+- 相当于在这里我们将`struct Ultram`改成了`M`.
+### 结构体作为函数的参数
+```c
+#include <stdio.h>
+#include <string.h>
+#include <stdbool.h>
+
+typedef struct Student
+{
+    char name[30];
+    int age;
+} stu;
+void change(stu *st);
+int main(void)
+{
+    stu stu1;
+    strcpy(stu1.name, "Liyiming");
+    stu1.age = 18;
+    change(&stu1);
+    printf("The name of stu1 is %s\n", stu1.name);
+    printf("The age of stu1 is %d\n", stu1.age);
+    return 0;
+}
+void change(stu *st)
+{
+    printf("The name of stu1 is %s\n", (*st).name);
+    printf("The age of stu1 is %d\n", (*st).age);
+    scanf("%s", (*st).name);
+    scanf("%d", &(*st).age);
+}
+```
+### 结构体的嵌套
+```c
+#include <stdio.h>
+#include <string.h>
+#include <stdbool.h>
+struct Message
+{
+    char phone[12];
+    char school_mail[100];
+};
+
+typedef struct Student
+{
+    char name[30];
+    int age;
+    struct Message msg;
+} stu;
+
+void change(stu *st);
+int main(void)
+{
+    stu stu1;
+    strcpy(stu1.name, "Liyiming");
+    stu1.age = 18;
+    strcpy(stu1.msg.phone, "17775756985");
+    strcpy(stu1.msg.school_mail, "liym2024@shanghaitech.edu.cn");
+    change(&stu1);
+    printf("%s", stu1.msg.school_mail);
+    return 0;
+    /*
+    stu stu2 = {"Liyiming",18,{"17775756985","liym2024@shanghaitech.edu.cn"}};
+    */
+}
+void change(stu *st)
+{
+    scanf("%s", (*st).msg.school_mail);
+}
+```
+### 结构体的内存对齐
+- 确定变量的位置：
+    1. 总体上还是按照定义的顺序从前到后的安排内存地址
+    2. 每一个变量只能放在自己类型整数倍的内存地址上（中间空出来的字节会被补位空白字符）
+- 最后一个补位：结构体的总大小，是最大类型的整数倍
+- 补位并不会改变相应的类型的变量的大小
+- 其实不只是在结构体中，只要是储存变量就会存在内存对齐的情况
+- 综上：我们将小的数据类型写在上面，大的数据类型写在下面（节省空间）
+
+>The jorney is to be continued! -- YiMing Li
