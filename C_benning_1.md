@@ -1,7 +1,5 @@
 # C_Beginning
-> This passage is created by YiMing Li(SHTU)
-
-> 纸上得来终觉浅，绝知此事要躬行
+> *Editor:YiMingLi*
 ## C语言中常见的未定义行为（C11）
 ### 什么叫做未定义
 未定义行为(undefined behavior)(简称 UB)指编译器允许编译, 但是语言标准中没有定义的行为. 这种现象的出现并不是语言标准不完善, 而是因为这种行为在编译时无法检查其错误或者受限于具体的 cpu 指令以及操作系统优化等使其会有在编译时不可预知的运行结果.
@@ -28,7 +26,7 @@ void func()
 char *string = "Hello";
 string[0] = 'h';
 ```
-上述代码会在第二行产生段错误.
+这个地方修改了未指定区域的内存，是未定义的行为.
 #### 除以零
 ```c
 #include <stdio.h>
@@ -41,7 +39,7 @@ int main()
     return 0;
 }
 ```
-#### 有返回值的函数没有return
+#### 有返回值的函数没有return/没有返回值的函数返回了一个值
 ```c
 #include <stdio.h>
 
@@ -55,8 +53,15 @@ int main() {
     return 0;
 }
 ```
+
+```c
+void no_return()
+{
+    return 10;//UB
+}
+```
 #### 存在副作用的子表达式
-副作用(side effect)的意思是函数会对其调用者的上下文中的某些东西产生改变, 比如函数内部改变了全局变量, 或者函数传入值的表达式本身会改变其调用者所在的上下文中的变量.
+副作用(side effect)的意思是函数会对其调用者的上下文中的某些东西产生改变, 比如函数传入值的表达式本身会改变其调用者所在的上下文中的变量.
 ```c
 #include<stdio.h>
 int main()
@@ -91,12 +96,16 @@ int i = 1;
 array[i] = i++;
 ```
 像这种因为先运行哪一个函数后运行那一个函数而导致结果不同的情况一般都是UD
-#### 解引用空指针
+#### 解引用空指针或者解引用野指针（or 悬垂指针）
 当我们尝试对空指针进行解引用操作的时候编译器无法确定要访问的内存空间中储存的内容。例如：
 ```c
 int *ptr = NULL;
-printf("%d\n",*ptr);
+printf("%d\n",*ptr);//UB
+int *ptr_2;
+printf("%d\n",(int)*ptr_2);//UB
 ```
+*指针转换成为`int`类型是可以的，但是如果是`NULL`转换成为整数，那么这个指针没有明确的规定*
+
 #### 未初始化的局部变量
 当我们使用未初始化的局部变量时，其值是未定义的，因此会导致未定义行为。例如：
 ```c
@@ -118,6 +127,16 @@ b++;                        // b 变为 0
 int *ptr = (int *)malloc(sizeof(int));
 float *fptr = (float *)ptr; // 错误的类型转换，结果未定义
 ```
+```c
+int i = 42;
+float *fp = &i;
+++*fp;//UB;this is NOT equivalent to ++i.
+```
+什么时候的指针转换是合法的？
+- 通过`void`类型指针搭桥完成的操作时合法的
+- 如果`T2`是与`T1`类型加上`const`,`volatile`或`restrict`限定的版本，那么转换时合法的。
+- 如果`T2`是`T1`先容类型的有符号或者是无符号的版本，转换也是合法的。
+- 如果`T2`是`char`,`signed char`,`unsigned char`类型的时候，也可以合法的转化。
 #### 函数参数数量并不匹配
 调用函数时提供的参数数量与函数定义不匹配，如`printf("%s %d","Name");`
 ### 练习（From SHTU）
@@ -234,23 +253,6 @@ if (result == EOF) {
 | `char[]` 或 `char*`   | `%s`            | `%s`           | `"Hello"`          | `printf("%s", "Hello");`                | `scanf("%s", str);`                     |
 | `void*`               | `%p`            | N/A            | `&var`             | `printf("%p", &var);`                   | N/A                                     |
 | `_Bool`               | `%d`            | `%d`           | `true` 或 `false`  | `printf("%d", true);`                   | `scanf("%d", &boolvar);`                |
-
-### 不同进制的表示方式
-
-| 类型                  | 十六进制         | 八进制           | 十进制             |
-|:---------------------:|:----------------:|:----------------:|:------------------:|
-| `char`                | `\x41`           | `\0101`          | `\65`/`65`         |
-| `int`                 | `0x41`           | `0101`           | `65`               |
-| `unsigned int`        | `0x41u`          | `0101u`          | `65u`              |
-| `long`                | `0x41L`          | `0101L`          | `65L`              |
-| `unsigned long`       | `0x41UL`         | `0101UL`         | `65UL`             |
-| `long long`           | `0x41LL`         | `0101LL`         | `65LL`             |
-| `unsigned long long`  | `0x41ULL`        | `0101ULL`        | `65ULL`            |
-| `float`               | `0x1.9p-4f`      | `01.443242e-4f`  | `6.5f`             |
-| `double`              | `0x1.9p-4`       | `01.443242e-4`   | `6.5`              |
-| `unsigned float`      | `0x1.9p-4uf`     | `01.443242e-4uf` | `6.5uf`            |
-| `long double`         | `0x1.9p-4L`      | `01.443242e-4L`  | `6.5L`             |
-| `unsigned long double`| `0x1.9p-4uL`     | `01.443242e-4uL` | `6.5uL`            |
 ### C语言逻辑运算结果类型及与int的关系
 - C语言逻辑运算结果类型及与int的关系:
 在C语言中，逻辑运算的结果类型和值有明确的定义。即使在C99标准引入布尔类型后，逻辑运算的结果仍然可以被看作是int类型。以下是详细解释。
@@ -459,7 +461,7 @@ Func3 is called
 - 也就是说在对于不同函数的调用`a()+b()+c()`中，由于`operator+`的原因从左到右的结合性分析成为`(a()+b())+c()`，但是在运行时可以首先，最后或者在中间运行`c()`
 - 个人的情况，其实我觉得函数的调用应该还是按照从左往右的顺序进行，但是如果是遇到逻辑判断则会出现短路现象（只要能够判断是否是真或者是假就会跳过相关的函数的调用）
 ## `static local`变量和`global`变量
-- `static local`变量表示的是在局部声明的整体变量，他们和`global`变量一样如果没有进行初始化就会被默认为初始化为0（不同类型的0模式，同样的如果是指针都是表示的是空指针）
+- `static local`变量表示的是在局部声明的整体变量，他们和`global`变量一样如果没有进行初始化就会**被默认为初始化为0**（不同类型的0模式，同样的如果是指针都是表示的是空指针）
 - 同样的`global`变量，在全局作用域外部定义的变量，这一些变量在整个程序中都可以使用
 - `static local`和`global`变量的声明都是在整个程序开始运行的时候进行声明的。同时也是在整个程序结束之后在消除的。
 - 例子：使用全局变量完成的只能调用一次的函数的书写
@@ -514,6 +516,8 @@ int * method(void)
 ```
 
 解释：因为在函数中的元素在函数外部将会释放它的内存地址，因此`method`传出的参数在函数的外部会将所储存的元素释放。
+### 指针传入函数
+指针传入函数中是指针的副本，如果在函数中通过指针对变量进行改变，这是正确的，但是如果在函数中通过指针本身对指针进行改变（例如交换）这个只在函数内部有效，如果要实现这个功能必须要使用双重指针来传入`swap(&p1,&p2)`,`void swap(int **p1,int **p2) int *temp = p1;p1 = p2;p2 = temp;`这样才行
 ### `const`指针
 ```c
 #include <stdio.h>
@@ -543,7 +547,7 @@ int main()
 ```
 可以通过指针来改变`const int`的内容，这里编译器报警，但是不会导致程序不运行，这里相当于使用`*p1`对`const int`所做的操作都是检查不出问题的（这是`UNdefined Behaviors`）
 
-如果我们希望这个指针只能指向这一个变量而不能够指向其他的变量，那么我们应该使用`int *const pc`来确定一个`Top-locked pointer`
+如果我们希望这个**指针只能指向这一个变量而不能够指向其他的变量**，那么我们应该使用`int *const pc`来确定一个`Top-locked pointer`
 ```c
 int x = 42;
 int *const pc = &x;
@@ -556,9 +560,17 @@ pc = &y; // Error
 所以这样的话我们有最高的上锁的指针
 `const int *const cipc = &x`也就是说不能够对他赋值，也不能够转换指针指向的对象。
 
-### `void*`
-`void*`表示的是一个知识指向地址的指针。所以`void*`可以转换成为任意类型的指针，而任何其他的指针也能够转换成`void*`
-
+### `void*`和`nullptr`
+任何其他的指针能够隐式转换为`void*`类型的指针，但是从`void*`类型转换成为其他的指针类型通常需要显示转化。
+- 常见运用
+    - `int *p = malloc(sizeof(int));`
+    `malloc`返回值是`void*`但是允许调用者将内存解释成为任意的对象类型
+    - 空指针与任何指向对象的指针比较的时候均不相同
+    - 空指针转换成为int类型的时候为0`char *ptr = NULL; int x = (int)ptr;`
+    - 空指针和其他的空指针通过比较操作符进行比较之后，两个空指针总是相同的。（不论是否是相同类型的）
+## 宏与`NULL`
+- `#define PI 3.1415926`,相当于将后文的`PI`全部替换成为`3.1415926`,这仅仅理解为一个字符替换的过程。
+- `NULL`也是一个实现定义的空指针常量，在不同的类型的变量接受的时候，常量也会发生变化。
 ## 数组与指针
 ### 数组的基本知识
 - 数组只能够通过对其中的元素赋值来修改,不能够在`main`函数中使用`b = {1,2,3}`这样的方式进行赋值
@@ -620,26 +632,32 @@ int (*p)[5] = arr;
 for (int i = 0; i < 3;i++)
 {
     for (int j = 0; j < 5; j++)
-    {
-        printf("%d ",(*p)++);
-    }
+        printf("%d ",(*p)++);//printf("%d ",(*p)[j]);
     p++;
 }
 ```
-
 如果是按照`int *arr[2] = {arr1,arr2};`来定义的二维数组的话`int **p = arr;`这里指向的类型是`arr`的首地址，也就是`arr1`，即指向`int`的指针。
 
 遍历的过程当中要注意
 ```c
-int **p = arr;//这里是指向指针的指针，因为这里的arr表示的是一个指针的数组
-for (int i = 0; i < 3; i++)
+#include <stdio.h>
+void operation(int **arr)
 {
-    for (int j = 0; j < len[i]; j++)
+    for (int i = 0; i < 2; i++)
     {
-        printf("%d ", *(*p + j));
+        for (int j = 0; j < 4; j++)
+            printf("%d ", *(*arr + j));
+        putchar('\n');
+        arr++;
     }
-    p++;//移动到其中一个元素的长度（也就是移动一个指针的长度,指向的就是第二个指针的首地址，也就是arr2的首地址）
-    printf("\n");
+}
+int main()
+{
+    int arr_1[] = {1, 2, 3, 4};
+    int arr_2[] = {11, 22, 33, 44};
+    int *arr[2] = {arr_1, arr_2};
+    operation(arr);
+    return 0;
 }
 ```
 
@@ -672,6 +690,8 @@ void fun(int a[10][N]);
 // 因为这个地方的a[M]都会被隐式转换成为(*a)
 ```
 这一些都是可以的
+
+**数组传递到函数中会退化成为首地址，这样的话，指针可以移动，这个地方不算修改函数首地址。（血的教训）**
 ## 动态内存
 计算机中存在多个内存的区域，其中最常见的区域是栈(stack)和堆(heap)
 
@@ -819,7 +839,7 @@ It stops unber one of these conditions:
 
 在`<stdlib.h>`中定义
 - **`strto+'···'`**:
-    - `strtol`:The function prototype is `long strtol(const char *nptr,char **endptr,int base)`.It converts a string to a `long long` value in the specified `base`(radix,ranging from 2 to 36,or 0 for auto-detection).(字符串一开始`0`表示八进制，字符串一开始`0x`表示16进制)It skips leading whitespce,starts conversion at digits/signs,and stops at non-digit characters or `\0`,If `endptr` isn't `NULL`,it stores the pointer to the character after the conversion end.(`endptr`表示的就是遇到第一个不满足条件的字符，随后停止转换，如果这里写`NULL`,表示遇到不满足的条件的时候直接返回`NULL`,没有指针指向它)
+    - *`strtol`:The function prototype is `long strtol(const char *nptr,char **endptr,int base)`.It converts a string to a `long long` value in the specified `base`(radix,ranging from 2 to 36,or 0 for auto-detection).(字符串一开始`0`表示八进制，字符串一开始`0x`表示16进制)It skips leading whitespce,starts conversion at digits/signs,and stops at non-digit characters or `\0`,If `endptr` isn't `NULL`,it stores the pointer to the character after the conversion end.*(`endptr`表示的就是遇到第一个不满足条件的字符，随后停止转换，如果这里写`NULL`,表示遇到不满足的条件的时候直接返回`NULL`,没有指针指向它)
     - `strtoul`:`unsigned long strtoul(const char *nptr,char **endptr ,int base)`
     - `strtoull`:`unsigned long long strtoull (const char*nptr,char**endptr,int base)`
     - `strof`:`double strtod(const char *nptr,char **endptr)`这里就不存在转换进制的功能。
@@ -829,9 +849,9 @@ It stops unber one of these conditions:
 
 在`<string.h>`中定义
 - `strcpy(dest,src)`将字符串`src`复制到`dest`中。包含结束符`'\0'`.
-- `strncpy(dest,src,5);`从源字符串 src 复制最多 n 个字符到目标字符串 dest 中。如果 src 的长度小于 n，则用 '\0' 填充 dest 直到复制了 n 个字符；如果 src 的长度大于等于 n，则**不会**在 dest 末尾添加 '\0' *If `dest` and `src` point to the same memory address, `strcpy` will still work correctly because it copies the `null` terminator (`\0`) from `src` to `dest`. The result will be the same string in the same memory location.*
+- `strncpy(dest,src,n);`从源字符串 src 复制最多 n 个字符到目标字符串 dest 中。如果 src 的长度小于 n，则用 '\0' 填充 dest 直到复制了 n 个字符；如果 src 的长度大于等于 n，则**不会**在 dest 末尾添加 '\0' *If `dest` and `src` point to the same memory address, `strcpy` will still work correctly because it copies the `null` terminator (`\0`) from `src` to `dest`. The result will be the same string in the same memory location.*
 - `strcat(dest,src)`将源字符串 src 连接到目标字符串 dest 的末尾，覆盖 dest 末尾的 '\0'，并在连接后的字符串末尾添加新的 '\0'。
-- `strncat(dest,src,3)`将源字符串 src 的最多 n 个字符连接到目标字符串 dest 的末尾，并在连接后的字符串末尾添加 '\0'。如果 src 的长度小于 n，则将整个 src 连接到 dest 末尾。
+- `strncat(dest,src,n)`将源字符串 src 的最多 n 个字符连接到目标字符串 dest 的末尾，并在连接后的字符串末尾添加 '\0'。如果 src 的长度小于 n，则将整个 src 连接到 dest 末尾。
 - `size_t len = strlen(str)`返回给定的字符串的长度(不包括`'\0'`)注意`strlen()`的运算速度很慢，不要总是调用这个函数。
 - `strcmp(s1,s2)`比较两个字符串 s1 和 s2 的大小。如果 s1 小于 s2，返回一个负数；如果 s1 等于 s2，返回 0；如果 s1 大于 s2，返回一个正数。(*The result of the result is not limited to -1,0,or 1*.)
 - `strchr`查找第一次出现的指定元素，并返回`char *`类型的地址
@@ -861,9 +881,9 @@ int main()
     return 0;
 }
 ```
-The change of the string can lead to the severe runtime-error.
+*The change of the string can lead to the severe runtime-error.*
 
-There are some ways to protect it:
+*There are some ways to protect it:*
 ```c
 const char *str = "abcde";
 str[3] = 'a';//compile error
@@ -874,7 +894,7 @@ const char *translations[] = {
         "zero", "one", "two", "three", "four",
         "five", "six", "seven", "eight", "nine"};
 ```
-Notes that `translation` is an array of pointers, where each pointer points to a string literal.`translations` is not a 2-d array.
+*Notes that `translation` is an array of pointers, where each pointer points to a string* *literal.`translations` is not a 2-d array.*
 ## Struct
 - 结构体可以理解为自定义的数据类型，他是由一批数据组合成为的结构性数据。
 ```c
@@ -883,7 +903,7 @@ struct 结构体名称
    成员1;
    成员2;
    ···
-}
+};
 ```
 ```c
 #include <stdio.h>
@@ -900,7 +920,7 @@ struct Student
    char name[30];
    int age;
    double height;
-}
+};
 int main()
 {
     /*
@@ -967,18 +987,33 @@ int main()
 }
 ```
 - 相当于在这里我们将`struct Ultram`改成了`M`.
-### 结构体作为函数的参数
+### 结构体与函数
+- 如果将结构体直接传入函数中，这个时候传入的其实是结构体的**副本**，如果在函数中对结构体进行改变这个时候也不会改变结构体的内部的内容（**哪怕结构体中存在数组**）
+    - 但是如果是结构体中存在数组的情况，数组会拷贝，所以尽管数组不能够直接拷贝，但是结构体的数组元素可以直接拷贝
+    ```c
+    struct A{
+        int arr[5];
+    };
+    ```
+    ```c
+    int a[10];
+    int b[10] = a;//Error!
+    ```
+    ```c
+    struct A a;
+    struct A b = a;//correct!
+    ```
+- 如果希望你能够传入结构体本身进入函数，那么需要传递结构体的地址，然后再使用指针来接受(`struct Student *stu1`)。
 ```c
 #include <stdio.h>
 #include <string.h>
 #include <stdbool.h>
-
-typedef struct Student
+typedef struct Student//注意要写在函数声明的上面
 {
     char name[30];
     int age;
 } stu;
-void change(stu *st);
+void change(stu *st);//类型是stu的一个指针
 int main(void)
 {
     stu stu1;
@@ -991,10 +1026,46 @@ int main(void)
 }
 void change(stu *st)
 {
-    printf("The name of stu1 is %s\n", (*st).name);
+    printf("The name of stu1 is %s\n", (*st).name);//(*st).name = st->name
     printf("The age of stu1 is %d\n", (*st).age);
     scanf("%s", (*st).name);
     scanf("%d", &(*st).age);
+}
+```
+
+同样的，结构体同样也可以作为函数的返回值，和上面直接传入结构体（而不是它的地址）而言，返回值也是它的一个*copy*。
+```c
+#include <stdio.h>
+
+typedef struct Point {
+    int x;
+    int y;
+} Point;
+
+// 返回结构体
+Point createPoint(int x, int y) {
+    Point p = {x, y};
+    return p;
+}
+
+// 返回结构体指针
+Point* createPointPtr(int x, int y) {
+    static Point p; // 使用static确保返回的指针有效
+    p.x = x;
+    p.y = y;
+    return &p;
+}
+
+int main() {
+    // 使用返回结构体的函数
+    Point p1 = createPoint(10, 20);
+    printf("p1: (%d, %d)\n", p1.x, p1.y);
+
+    // 使用返回结构体指针的函数
+    Point* p2 = createPointPtr(30, 40);
+    printf("p2: (%d, %d)\n", p2->x, p2->y);
+
+    return 0;
 }
 ```
 ### 结构体的嵌套
@@ -1002,12 +1073,11 @@ void change(stu *st)
 #include <stdio.h>
 #include <string.h>
 #include <stdbool.h>
-struct Message
+typedef struct Message
 {
     char phone[12];
     char school_mail[100];
-};
-
+} msg;
 typedef struct Student
 {
     char name[30];
@@ -1023,7 +1093,7 @@ int main(void)
     stu1.age = 18;
     strcpy(stu1.msg.phone, "17775756985");
     strcpy(stu1.msg.school_mail, "liym2024@shanghaitech.edu.cn");
-    change(&stu1);
+    change(&stu1);//如果传递的是stu1的话意味着传递的是一个副本
     printf("%s", stu1.msg.school_mail);
     return 0;
     /*
@@ -1042,6 +1112,47 @@ void change(stu *st)
 - 最后一个补位：结构体的总大小，是最大类型的整数倍
 - 补位并不会改变相应的类型的变量的大小
 - 其实不只是在结构体中，只要是储存变量就会存在内存对齐的情况
-- 综上：我们将小的数据类型写在上面，大的数据类型写在下面（节省空间）
+- 综上：我们**将小的数据类型写在上面，大的数据类型写在下面**（节省空间）
 
->The jorney is to be continued! -- YiMing Li
+### 结构体指针
+`struct Student *pstu = malloc(sizeof(struct Student));`
+
+*Member access through a pointer :`ptr->mem`(maybe better)or`(*ptr).mem`mot(`*ptr.mem`).For example:`ptr->num = 123;`.As usual,don't forget to `free` after use.*
+### 结构体初始化
+结构体在定义的时候，是不存在初始化的。当我们去调用实例的时候，如果是定义的一个全局的实例，那么就会是一个已经初始化的结果，同样的，如果在定义实例的时候定义为一个静态的实例那么也会初始化。
+```c
+#include <stdio.h>
+typedef struct Student
+{
+    int id;
+    double height;
+} stu;
+stu stu1;//全局变量，自动初始化
+int main()
+{
+    stu stu2={0,0.0};//显示初始化
+    static stu stu3;//使用static关键字将它初始化
+    printf("%d %f", stu1.id, stu1.height);
+    return 0;
+}
+```
+### 结构体数组
+和其他的类型的数组一样，使用指针可以快速的定义一个数组,并采用循环的方式来赋值。
+```c
+struct Student *student_list = malloc(sizeof(struct Student) * n);
+for (int i = 0; i != n; ++i) 
+{
+    // A, B, C and D are some functions
+    student_list[i].id = B(i);
+    student_list[i].entrance_year = C(i);
+    student_list[i].dorm = D(i);
+}
+```
+```c
+struct Student *student_list = malloc(sizeof(struct Student) * n);
+for (int i = 0; i != n; ++i)
+{
+    student_list[i] = (struct Student){.name = A(i), .id = B(i),
+        .entrance_year = C(i), .dorm = D(i)};
+}
+```
