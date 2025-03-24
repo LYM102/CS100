@@ -1156,3 +1156,58 @@ for (int i = 0; i != n; ++i)
         .entrance_year = C(i), .dorm = D(i)};
 }
 ```
+
+#### 结构体中的指针数组
+```c
+#include <stdio.h>
+#include <stdlib.h>
+
+// 定义包含数组指针的结构体
+typedef struct {
+    int *arr;
+    int size;
+} MyStruct;
+
+int main() {
+    // 初始化一个结构体实例
+    MyStruct original;
+    original.size = 5;
+    original.arr = (int *)malloc(original.size * sizeof(int));
+    for (int i = 0; i < original.size; i++) {
+        original.arr[i] = i;
+    }
+
+    // 复制结构体
+    MyStruct copy = original;
+
+    // 修改复制结构体中指针所指向的数组元素
+    copy.arr[0] = 100;
+
+    // 输出原结构体中指针所指向的数组元素
+    printf("Original array: ");
+    for (int i = 0; i < original.size; i++) {
+        printf("%d ", original.arr[i]);
+    }
+    printf("\n");
+
+    // 释放内存
+    free(original.arr);
+
+    return 0;
+}
+```
+可见如果是使用的是指针来储存数组，那么在结构体复制的时候内部的指针也会进行复制，也就是说在两个结构体中的数组是同一个数组，在`free(ptr);`的时候会发生`UB`.
+
+- Deep copy of the array
+```c
+void vector_assign(struct Vector * to, const struct Vector *from)
+{
+    to->entries = malloc(from->dimension * sizeof(double));
+    memcpy(to->entries, from->entries, from->dimension * sizeof(double));
+    to->dimension = from->dimension;
+}
+```
+
+*我们如何简化这个复杂的过程？*
+
+*The journey is to be continued*
