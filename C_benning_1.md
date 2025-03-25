@@ -1386,6 +1386,7 @@ int main(int argc,char **argv){
 }
 ```
 注意如果输入`.\test liyiming 060514 123`，那么`argc = 4`,`argv[0] = '.\test',argv[1] = 'liyiming'....`
+
 *我们如何简化这个复杂的过程？*
 
 *The journey is to be continued*
