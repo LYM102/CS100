@@ -395,6 +395,28 @@ int main()
 | 15     | `+=` `-=` `*=` `/=` `%=`| 复合赋值运算符             | 从右到左     |
 | 15     | `<<=` `>>=` `&=` `^=` `\|=`| 复合赋值运算符             | 从右到左     |
 | 16     | `,`                     | 逗号运算符                 | 从左到右     |
+### 一个使用位运算符的例子——转换二进制
+```c
+#include <stdio.h>
+#define SIZEOF_UINT 32
+void trans(unsigned x, char **s)
+{
+    if (x > 1)
+    {
+        trans(x >> 1, s);
+        (*s)++;
+    }
+    **s = (x & 1u) + '0';
+}
+int main(void)
+{
+    char str[SIZEOF_UINT + 1] = {'\0'};
+    char *ptr = str;
+    trans(148, &ptr);
+    printf("%s", str);
+    return 0;
+}
+```
 ### 算数运算与算数运算的左连接问题
 ```c
 #include <stdio.h>
@@ -568,6 +590,30 @@ pc = &y; // Error
     - 空指针与任何指向对象的指针比较的时候均不相同
     - 空指针转换成为int类型的时候为0`char *ptr = NULL; int x = (int)ptr;`
     - 空指针和其他的空指针通过比较操作符进行比较之后，两个空指针总是相同的。（不论是否是相同类型的）
+### 函数指针
+- 函数指针是⼀种指针，即 变量，它 指向⼀个函数的地址。
+- 运⾏中的程序在主内存中占据⼀定空间。⽆论是可执⾏的编译代码还是所使⽤的变量，都存放在这块内存中，因此程序代码中的函数也具有唯⼀的地址。
+- 定义：`return_type (* pointer_name) (datatype_arg_1, datatype_arg_1, ...);`
+  - 例如：`float foo(int,int)`->`floar (*foo_ptr)(int,int);`
+  - 实例：`void* (*p)(int *,int *);`
+- 传递：
+    ```c
+    void f(int);
+    void (*ptr1)(int) = &f;
+    void (*ptr2)(int) = f;//和上面一样
+    ```
+- 使用
+```c
+int (*pointer)(int);
+int areaSquare (int);
+pointer = areaSquare;
+```
+```c
+int length = 5;
+int area = areaSquare(length);
+int area = (*pointer)(length);//使用指针1
+int area = pointer(length);//使用指针2
+```
 ## 宏与`NULL`
 - `#define PI 3.1415926`,相当于将后文的`PI`全部替换成为`3.1415926`,这仅仅理解为一个字符替换的过程。
 - `NULL`也是一个实现定义的空指针常量，在不同的类型的变量接受的时候，常量也会发生变化。
@@ -692,6 +738,18 @@ void fun(int a[10][N]);
 这一些都是可以的
 
 **数组传递到函数中会退化成为首地址，这样的话，指针可以移动，这个地方不算修改函数首地址。（血的教训）**
+### 指向首地址与指向整个数组
+```c
+int arr[5];
+int *p = &arr;
+int (*p_arr)[5] = &arr;
+```
+这个地方`int (*p_arr)[5]`就是指向整个数组的一个指针，`int *p`就是指向数组的首地址的一个指针。
+
+- 指向整个数组的指针和指向首地址的指针的区别？
+    1. 对`int (*p_arr)[5]`的指针进行操作的时候相当于对于整个数组进行操作，例如要选取其中的某个元素`(*p_arr)[i]`表示获得其中某个元素的内容
+    2. 同样的对于`int (*p_arr)[5]`进行数学操作,`p_arr+1`表示的就是往后移动整个数组的长度
+- 同样的我们可以定义一个指向一个二维数组整体的指针`int (*p_arr)[5][10]`
 ## 动态内存
 计算机中存在多个内存的区域，其中最常见的区域是栈(stack)和堆(heap)
 
@@ -796,7 +854,121 @@ int main() {
 - `malloc(0)`的行为是由编译器决定的。这意味着不同的编译器可能存在不同的处理方式。他可能返回一个空指针，表示没有分配任何内存；也可能返回一个非空的指针。这样也会导致内存泄露的问题，因为如果返回了一个非空的指针，而这个时候你没有使用`free`函数将这一块空间释放，这样就会导致内存泄漏。
 - 和`malloc`一样`calloc(0,N);`也是根据编译器来选择不同行为的。
 - `free(NULL)`是安全的，不会产生任何副作用，但是不能够重复释放同一个内存。
-
+### `realloc`函数重新分配内存地址
+- 参数`ptr`可以为`null`，或之前由`malloc`,`calloc`,`realloc`分配但是没有被`free`的指针或者是.
+- 如果`ptr`是`NULL`，行为等同于`malloc(new_size)`
+- 如果`ptr`不是`NULL`，则内存分配通过以下方式进行
+    - 扩展或者收缩`ptr`现有内存
+    - 分配一个大小为`new_size`的新内存地址，将新的内存地址中较小的部分的数据复制过去，然后释放旧内存块
+    - **如果内存不足，则旧内存块不会被释放，并返回空指针**
+### `malloc(0)`的情况
+`malloc(0)`,`calloc(0,N)`,`calloc(N,0)`,`realloc(ptr,0)`这些结果都是实现定义的
+  - 这些函数可能不分配任何内存地址而返回空指针
+  - 然而，对这些指针进行解引用也是未定义行为
+  - 为了避免内存泄漏，这样分配的内存也要释放
+### `memset`函数
+- `void *memset(void *s,int c,size_t n);`(定义在`<string.h>`中)
+  - 参数解释：
+  1. `s`指向的是待填充的内存块的指针
+  2. `c`填充值，会被转换成为`unsigned char`类型
+  3. `n`填充的字节数
+- 返回值：返回填充后内存块指针`s`
+- 例如：
+```c
+#include <string.h>
+int arr[10];  
+memset(arr, 0, sizeof(arr)); // 将 arr 所有字节置为 0  
+```
+### 一个经典的例子——读取一个长度不限的字符串
+- 使用`malloc`和`free`来完成这个任务
+```c
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include <ctype.h>
+#define INITIAL_SIZE 10
+char *read_string(void)
+{
+    char c = getchar();
+    while (isspace(c))
+        c = getchar();
+    char *buffer = malloc(INITIAL_SIZE);
+    int capacity = INITIAL_SIZE;
+    int cur_pos = 0;
+    while (c != '\n')
+    {
+        if (cur_pos == capacity - 1)
+        {
+            char *new_buffer = malloc(capacity * 2);
+            if (new_buffer == NULL)
+            {
+                printf("WRONG!");
+                buffer[cur_pos] = '\0';
+                return buffer;
+            }
+            memcpy(new_buffer, buffer, cur_pos);
+            free(buffer);
+            capacity *= 2;
+            buffer = new_buffer;    //指针的赋值
+        }
+        buffer[cur_pos++] = c;
+        c = getchar();
+    }
+    ungetc(c, stdin);
+    buffer[cur_pos] = '\0';
+    return buffer;
+}
+int main()
+{
+    char *str = read_string();
+    printf("%s", str);
+    return 0;
+}
+```
+- 使用`realloc()`写的
+```c
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include <ctype.h>
+#define INITIAL_SIZE 10
+char *read_string(void)
+{
+    char c = getchar();
+    while (isspace(c))
+        c = getchar();
+    char *buffer = malloc(INITIAL_SIZE);
+    int capacity = INITIAL_SIZE;
+    int cur_pos = 0;
+    while (c != '\n')
+    {
+        if (cur_pos == capacity - 1)
+        {
+            char *new_buffer = realloc(buffer, 2 * capacity);
+            if (new_buffer == NULL)
+            {
+                printf("Wrong!\n");
+                buffer[cur_pos++] = c;
+                buffer[cur_pos] = '\0';
+                return buffer;
+            }
+            capacity *= 2;
+            buffer = new_buffer;
+        }
+        buffer[cur_pos++] = c;
+        c = getchar();
+    }
+    ungetc(c, stdin);
+    buffer[cur_pos] = '\0';
+    return buffer;
+}
+int main()
+{
+    char *str = read_string();
+    printf("%s", str);
+    return 0;
+}
+```
 ## 字符串
 ### 字符串与`\0`
 - `\0`表示的是字符串的结束，在使用`char str[15] = "This is me"`来储存字符的时候一定要考虑到`\0`算作其中的一个元素（如果少了会导致在输出的时候存在**未定义行为**）。
@@ -1207,7 +1379,13 @@ void vector_assign(struct Vector * to, const struct Vector *from)
     to->dimension = from->dimension;
 }
 ```
-
+## 命令行输出
+```c
+int main(int argc,char **argv){
+    //body
+}
+```
+注意如果输入`.\test liyiming 060514 123`，那么`argc = 4`,`argv[0] = '.\test',argv[1] = 'liyiming'....`
 *我们如何简化这个复杂的过程？*
 
 *The journey is to be continued*
