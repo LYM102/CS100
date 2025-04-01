@@ -1124,6 +1124,30 @@ int main()
    return 0;
 }
 ```
+- 结构体的初始化（续）
+```c
+strcut Time{
+    int sec,min,hour,day,month,year;
+};
+struct Time today = {.day = 25,10,2024,.sec = 30,25,18};
+```
+指定结构体的初始化器`.day`,`.sec`后续成员变量按照顺序进行声明。
+- 但是需要注意的是，使用**初始化列表**对已经存在的结构体对象赋值是无效的
+```c
+strct Rcord{void*ptr,size_t;int lin_no;const char*file;};
+```
+```c 
+    struct Rcord r = {NULL,0,0,NULL};//error!
+```
+```c
+struct Rcord records[10];
+records[i] = {.ptr = p....}//Error!
+```
+- **解决办法**：使用复合字面量
+```c
+struct Rocrd r;
+r = (struct Rcord){p,cnt,...}//OK
+```
 ### 结构体的别名
 ```c
 typedef struct (Name)//name可以写也可以不写
@@ -1240,6 +1264,15 @@ int main() {
     return 0;
 }
 ```
+- 结构体传递到函数中的作用：返回多个返回值
+```c
+struct minmax_result(int min,int max);
+struct minmax_result min_max (int *array,int n)
+{
+    //...
+    return (struct minmax_result){INT_MIN,INT_MAX};
+}
+```
 ### 结构体的嵌套
 ```c
 #include <stdio.h>
@@ -1277,6 +1310,14 @@ void change(stu *st)
     scanf("%s", (*st).msg.school_mail);
 }
 ```
+- 注意这样的结构体嵌套是允许的但是结构体中不能够嵌套的定义结构体
+```c
+typedef struct A{
+    struct B{//Error!
+        int a;
+    }b;
+}A;
+```
 ### 结构体的内存对齐
 - 确定变量的位置：
     1. 总体上还是按照定义的顺序从前到后的安排内存地址
@@ -1307,6 +1348,67 @@ int main()
     printf("%d %f", stu1.id, stu1.height);
     return 0;
 }
+```
+
+然而，**指向结构体自身类型的指针**是允许的，并且在数据结构中被广泛使用。
+```c
+//An example of a linked list:
+#include <stdio.h>
+#include <stdlib.h>
+
+// 定义链表节点结构体
+typedef struct Node {
+    int data;
+    struct Node* next;
+} Node;
+
+// 在指定节点后插入新节点的函数
+void insertAfter(struct Node *prev_node, int new_data) {
+    if (prev_node == NULL) {
+        printf("the given previous node cannot be NULL");
+        return;
+    }
+    struct Node* new_node = (struct Node*)malloc(sizeof(struct Node));
+    new_node->data = new_data;
+    new_node->next = prev_node->next;
+    prev_node->next = new_node;
+}
+
+// 打印链表的函数
+void printList(Node *node) {
+    while (node != NULL) {
+        printf("%d ", node->data);
+        node = node->next;
+    }
+    printf("\n");
+}
+
+int main() {
+    // 创建头节点
+    Node *head = (Node*)malloc(sizeof(Node));
+    head->data = 1;
+    head->next = NULL;
+
+    // 打印初始链表
+    printf("Initial list: ");
+    printList(head);
+
+    // 在头节点后插入新节点
+    insertAfter(head, 2);
+
+    // 打印插入新节点后的链表
+    printf("List after inserting 2 after head: ");
+    printList(head);
+
+    // 在第二个节点后插入新节点
+    insertAfter(head->next, 3);
+
+    // 打印再次插入新节点后的链表
+    printf("List after inserting 3 after the second node: ");
+    printList(head);
+
+    return 0;
+}    
 ```
 ### 结构体数组
 和其他的类型的数组一样，使用指针可以快速的定义一个数组,并采用循环的方式来赋值。
@@ -1386,7 +1488,66 @@ int main(int argc,char **argv){
 }
 ```
 注意如果输入`.\test liyiming 060514 123`，那么`argc = 4`,`argv[0] = '.\test',argv[1] = 'liyiming'....`
-
 *我们如何简化这个复杂的过程？*
 
 *The journey is to be continued*
+## `enum`与`union`
+- `enum`
+    - `enum color{RED,GREEN,BLUE};`(RED = 0,GREEN = 1,BLUE = 2)
+    - `enum foo{a,b,c = 10,d,e,f = 1,g}`(a = 0,b = 1,c = 10,d = 11,e = 12,f = 1,g = 2)
+    - `enum color = RED`和结构体类似，枚举对象的完整类型叫做包含`enum`关键字
+- `union`
+    - 先看一个例子：
+    ```c
+    union Data{
+        int intVlue;
+        float floatValue;
+        char str[20];
+    };
+    ```
+    该声明创建了一个名为`Data`的共用体的类型，他要么可以储存一个整数要么可以在储存一个浮点数，要么可以储存一个字符串，**所有的成员共享一个内存地址**。
+    - Example
+    ```c
+    #include <stdio.h>
+    #include <string.h>
+    union Data {
+        int i;
+        float f;
+        char str[20];
+    };
+    int main(void) {
+        union Data data;
+        printf("size: %zu\n", sizeof(data));//20
+        data.i = 10;
+        data.f = 220.5;
+        strcpy(data.str, "C Programming");
+        printf("data.i : %d\n", data.i);//1917853763
+        printf("data.f : %f\n", data.f);//4122360580327794860452759994368.00000
+        printf("data.str : %s\n", data.str);//C Programming
+        return 0;
+    }
+    ```
+## 位域
+位域允许你指定结构体或共⽤体中每个成员所占的位数。需要注意的是，位域的实际打包和排列顺序是实现定义的，可能因编译器⽽异
+```c
+#include <stdio.h>
+#include <stdlib.h>
+// 定义⼀个利⽤位域表示⽇期的结构体
+typedef struct Date
+{
+    unsigned int day : 5;
+    unsigned int month : 4;
+    unsigned int year : 7;
+} today;
+// 在某个函数中：
+int main()
+{
+    today date;
+    date.day = 25;
+    date.month = 12;
+    date.year = 121;
+    printf("Date: %u/%u/%u\n", date.day, date.month, date.year);
+    return 0;
+}
+```
+位域成员通过显式指定位宽进⾏声明。相邻的位域成员可能被打包在⼀起，共享甚⾄跨越单个字节。由于位域不⼀定从⼀个字节的起始位置开始，因此⽆法获取其地址。的指针，不能对位域应⽤不能取得位域`sizeof`运算符
