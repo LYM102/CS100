@@ -804,6 +804,11 @@ std::vector<int>::size_type = v.size();
 std::list<int>::size_type = l.size();
 ```
 ### `static`member in class
+在c++中，`static`成员变量是属于类本身的，而不是属于类的某个对象。它们在所有对象之间共享，并且只会有一份实例。由于`staic`成员变量的储存室独立于类本身的，因此需要在类的外部进行定义和初始化，来分配内存。
+
+1. 类定义只是声明：在类内部，`static`成员变量只是声明，斌没有分配内存。类外部的定义才是真正分配内存的地方。
+2. 分离编译：如果只是在类内部声明而不再类外部定义，连接器在链接阶段找不到该变量的定义，从而导致连接失败。
+3. 初始化：`static`成员变量只能在类外部初始化，不能再类内部直接赋值(c++17之前)。这是因为类的定义只是声明，不能用于分配初始化静态变量。
 ```c++
 #include <iostream>
 
@@ -836,7 +841,7 @@ int main() {
 ```
 - 应用：
     - `std::string::npos`是c++标准库中`std::string`类的一个静态常量，表示一个特殊的值，用于指示“没找到”或“无效位置”。
-    - `std:;string::npos`通常被定义为：`static const size_type npos = -1;`
+    - `std::string::npos`通常被定义为：`static const size_type npos = -1;`
     - 使用：
     ```c++    
     #include <iostream>
@@ -882,7 +887,7 @@ int main() {
     int main() {
     Student stu;
     char target = 'e';
-    auto pos = stu.find(target); // 使用 auto 自动推导返回值类型
+    auto pos = stu.find(target); 
 
     if (pos != Student::npos) {
         std::cout << "Found '" << target << "' at position: " << pos << std::endl;
@@ -894,49 +899,453 @@ int main() {
     }
     ```
 ### `friend`
-- 友元类
+#### 友元函数
+在c++中，友元是一种特殊的机制，允许一个类以外的函数或者其他类访问其私有变量`private`或者是受到保护的对象`protect`，友元可以是函数，也可以是类
+```c++
+class ClassName{
+    friend ReturnType FriendFunctionName(Parameters);//声明友元函数
+}
+```
+示例：
 ```c++
 #include <iostream>
 #include <string>
-
-// 前向声明
-class Student;
-
-class Teacher {
-public:
-    void printStudentInfo(const Student& stu); // 声明一个函数，用于访问 Student 的私有成员
-};
+using namespace std;
 
 class Student {
 private:
-    std::string name;
-    int age;
-
-    // 声明 Teacher 为友元类
-    friend class Teacher;
+  string name;
+  int age;
 
 public:
-    Student(const std::string& name, int age) : name(name), age(age) {}
+  Student(const string &name, int age) : name(name), age(age) {}
+
+  friend void printStudentInfo(const Student &stu); // 声明友元函数
 };
 
-// Teacher 类的成员函数实现
-void Teacher::printStudentInfo(const Student& stu) {
-    // 访问 Student 的私有成员
-    std::cout << "Student Name: " << stu.name << ", Age: " << stu.age << std::endl;
+// 友元函数定义
+void printStudentInfo(const Student &stu) {
+  cout << "Name :" << stu.name << ",Age: " << stu.age << endl;
 }
 
 int main() {
-    Student stu("Alice", 20);
-    Teacher teacher;
-
-    teacher.printStudentInfo(stu); // 调用 Teacher 的成员函数访问 Student 的私有成员
-
-    return 0;
+  Student stu("Alice", 20);
+  printStudentInfo(stu); // 调用友元函数
+  return 0;
 }
 ```
+1. 友元函数不是类的成员函数，但是可以访问类的私有和受保护的对象
+2. 友元函数的声明可以放在类的`public`,`private`,`protect`中，效果相同。
+3. 友元函数的定义不需要使用作用域解析符(className::).
+#### 友元类
+友元类是一个类，他被声明为另一个类的友元，因此可以访问该类的私有和受保护的成员
+```c++
+class ClassA{
+    friend class ClassB;//声明class B为友元类
+}
+```
+示例
+```c++
+#include <iostream>
+#include <string>
+using namespace std;
+
+class Student {
+private:
+  string name;
+  int age;
+
+public:
+  Student(const string &name, int age) : name(name), age(age) {}
+  friend class Teacher;
+};
+
+class Teacher {
+public:
+  void printStudentInfo(const Student &stu) { cout << "Name: " << stu.name << ",Age: " << stu.age << endl; }
+};
+
+int main() {
+  Student stu("Alice", 20);
+  Teacher teacher;
+  teacher.printStudentInfo(stu);
+  return 0;
+}
+```
+1. 友元类可以访问另一个类的所有私有和受保护成员。
+2. 友元关系是单向的，`ClassA`是`ClassB`的友元，但是`ClassB`不是`ClassA`的友元
 ### move assignment
+- move assignment vs copy assignment
+    1. 移动复制运算符和拷贝赋值运算符，他们都是特殊的成员函数，他们的作用都是对对象进行赋值操作。
+    2. 两者的函数名均为`operator =`,参数通常是同类型的对象
+    3. 实现机制不同，拷贝赋值运算符：创建源对象的副本，然后将这个副本赋值给目标对象。这通常意味着要复制对象的所有的成员变量，要是有动态分配的资源，就需要重新分配内润并且复制数据
+    4. 移动赋值运算符：把源对象的资源所有权交给目标对象，而不进行数据的复制。
+- Motivation :`copy` is slow
+```c++
+String a = some_value(),b = some_other_value();
+String s;
+s = a;  //copy
+s = a+b;//move
+```
+- Rvalue References(右值)
+```c++
+int &r = 42;//Error!
+const int &r = 42;//OK
+
+int &&r = 42;//OK
+int i = 42;
+int &&r = i;//Error
+const int &&i = 42;//可行但是没必要
+```
+- 与此同时我们可以通过左值和右值的接受函数不同来确定不同的重载函数
+```c++
+void fun(const std::string &s)//接受一个左值
+void fun(std::string &&s)//接受一个右值     fun(s1+s2)
+```
+- Move Operations
+    - 包括移动构造函数和移动赋值函数
+    1. 移动构造函数
+    ```c++
+    class Myclass {
+    public:
+    Myclass(Myclass &&other) noexcept {
+        // 移动资源的代码
+    }
+    };
+    ```
+    2. 移动赋值函数
+    ```c++
+    class Myclass {
+    public:
+    Myclass &operator=(Myclass &&other) noexcept {
+        if (this != &other) {
+        // 释放当前对象的资源
+        //  移动other 的资源到当前对象
+        }
+        return *this;
+    }
+    }
+    ```
+    - 两者不同的应用场景
+        - 移动构造函数：在创建新对象的时候调用，例如再函数返回临时对象、使用`std::move`强制转换成为右值的时候进行初始化等场景中
+        - 移动复制运算符：在对已经存在的对象进行赋值操作的时候调用，例如将一个临时对象赋值给一个已经存在的对象。
+#### Constructor
+```c++
+#include <iostream>
+
+class Dynarray {
+  int *m_storage;
+  std::size_t m_length;
+
+public:
+  Dynarray(const Dynarray &other) // copy constructor
+      : m_storage(new int[other.m_length]), m_length(other.m_length) {
+    for (std::size_t i = 0; i != m_length; ++i) {
+      m_storage[i] = other.m_storage[i];
+    }
+  }
+
+  Dynarray(Dynarray &&other) noexcept // move constructor
+      : m_storage(other.m_storage), m_length(other.m_length) {
+    if (this != &other) {
+      other.m_storage = nullptr;
+      other.m_length = 0;
+    }
+  }
+};
+```
+#### The Move Assignment Operator
+```c++
+class Dynarray {
+public:
+  Dynarray &operator=(Dynarray &&other) noexcept {//这里返回的是一个引用，这样可以使得其连续调用，同时也确保了将自己本身传出.
+    if (this != &other) {
+      delete[] m_storage;
+      m_stroage = other.m_strorage;
+      m_length = other.m_length;
+      other.m_storage = nullptr;
+      other.m_length = 0;
+    }
+    return *this;
+  }
+};
+```
+- Lvalues are Copied; Rvalues are Moved
+Suppose we have a function that concatenates two Dynarrray S:
+```c++
+Dynarray concat(const Dynarray &a,const Dynarray &b){
+    Dynarray result(a.size()+b.size());
+    for(std::size_t i = 0;i!=a.size();++i)
+        result.at(i) = a.at(i);
+    for(std::size_t i = 0;i!=b.size();i++)
+        result.at(a.size()+i) = b.at(i);
+    return result;
+}
+```
+那么我们现在调用`=`会调用哪一个函数呢？
+```c++
+a = concate(b,c);//move
+a = b;//copy
+```
+- `std::move`
+```c++
+int ival = 42;
+int &&rref = ival;//Error
+int &&rref = std::move(ival);//OK
+```
+#### 复制省略
+```c++
+std::string foo(const std::string &a,const std::string &b){
+    return a+b;
+}
+std::string s = foo(a,b);
+```
+在这里不是调用的移动复制也不是赋值复制，而是复制省略，这是在初始化的时候就直接声明一个`a+b`的对象，可以大大加快速度和效率。
+#### 判断
+1. 
+```c++
+Dynarray concat(const Dynarray &a, const Dynarray &b) {
+  Dynarray result(a.size() + b.size());
+  for (std::size_t i = 0; i != a.size(); ++i)
+    result.at(i) = a.at(i);
+  for (std::size_t i = 0; i != b.size(); ++i)
+    result.at(a.size() + i) = b.at(i);
+  return result;
+}
+
+a = concat(b, c);
+```
+这个地方的`result`虽然是一个有名字的值，但是这里还是一个右值，所以会调用`move assignment`
+## Smart Pointers
+### 为什么要使用智能指针？
+在程序中我们为了避免内存泄露，我们要注意所有声明或者是`new`得到的指针我们都要在程序结束之前将他删除`delete`所以综上所述，我们可以采用我们在`class`中定义的析构函数来完成对于指针的管理
+```c++
+struct WindowPtr{
+  Window *ptr;//存在一个指向Window类的ptr指针
+  WindowPtr(Window *p):ptr(p){}//将Window的指针赋值给WindowPtr中的ptr
+  ~WindowPtr() { delete ptr; }//通过析构函数进行管理
+}
+```
+虽然这个问题解决了，但是我们仍然不能像使用指针一样使用这个类指针
+
+例如我们考虑指针的复制问题：
+```c++
+{
+    WindowPtr pWindow(new Window(settings.width,settings.height,settings.mode));
+    auto copy = pWindow;
+}
+```
+这个时候`copy`和`pWindow`都指向相同的地址，这样的话会导致一个指针被`delete`两次。
+
+- 解决方法：
+1. `WindowPtr copy(new Window(*pWindow.ptr))`深拷贝
+
+解释：`pWindow.ptr`是原来的`pWindow`指针这个时候见他解引用然后再重新声明一个`Window`类的指针将他赋值给一个新的`copy`，这样`copy`和原来的指针的内容一样，但是拥有不同的地址。
+2. `WindowPtr copy(pWindow.ptr)`浅拷贝
+
+解释：要采用这样的拷贝方式就会导致两个指针指向的是同一个地址，这样的话，要设计特殊的计数方式来让两个指针只会被`delete`一遍
+
+3. 禁止指针的复制
+### 关于智能指针
+- **智能指针定义**：智能指针是一种管理资源的指针。  
+- **智能指针复制的可能行为**：  
+  1. **复制对象（值语义）**：复制智能指针所指向的对象。典型例子是标准库容器，如 `std::string`、`std::vector`、`std::set` 等，它们在复制时会生成新的独立对象。  
+  2. **复制指针，但有特殊设计（指针语义）**：复制指针本身，但通过特殊机制（如引用计数）避免资源管理问题。典型代表是 `std::shared_ptr<T>`，定义在标准库头文件 `<memory>` 中，它允许多个指针共享同一资源，通过引用计数管理资源的生命周期。  
+  3. **禁用复制（唯一所有权）**：禁止复制操作，确保资源的唯一所有权。例如 `std::unique_ptr<T>`，也定义在 `<memory>` 中，它保证同一时刻只有一个指针拥有资源，不能共享所有权。  
+- **智能指针与垃圾回收**：`std::shared_ptr<T>`、`std::unique_ptr<T>` 和 `std::weak_ptr<T>` 是 C++ 对垃圾回收机制的一种实现方式，用于自动管理动态分配的资源，避免内存泄漏等问题。其中 `std::weak_ptr<T>` 在 CS100 课程中未涉及。  
 
 
+- **智能指针与垃圾回收**：`std::shared_ptr<T>`、`std::unique_ptr<T>` 和 `std::weak_ptr<T>` 是 C++ 针对垃圾回收机制的解决方案，用于自动管理动态分配的资源，避免内存泄漏等问题。  
+
+- **智能指针与原始指针操作的相似性**：  
+  - `*sp`：返回智能指针 `sp` 所指向对象的引用。  
+  - `sp->mem`：等价于 `(*sp).mem`，用于访问指针所指向对象的成员 `mem`。  
+  - **上下文转换为 `bool`**：智能指针 `sp` 可当作条件使用，具体表现为：  
+    - 能置于 `if`、`for`、`while`、`do` 等语句的条件部分。  
+    - 能作为逻辑运算符 `&&`、`||`、`!` 的操作数，或条件运算符 `?:` 的第一个操作数。  
+    - 仅当 `sp` 持有对象（非空）时，转换结果为 `true`。  
+
+- **最佳实践**：在现代 C++ 编程中，推荐优先使用智能指针，而非原始指针，以更安全、便捷地管理资源。  
+### `std::unique_ptr`
+```c++
+class WindowPtr{
+  Window* ptr;
+public:
+  WindowPtr(Window *p = nullptr) : ptr(p) {};//存在一个空指针作为初始化参数，如果没有内容传入就默认传入的是一个空指针
+  ~WindowPtr() { delete ptr };//析构函数
+  WindowPtr(const WindowPtr &) = delete;//禁止任何复制行为
+  WindowPtr(WindowPtr &&other) noexcept : ptr(other.ptr) { other.ptr = nullptr; }//构造move函数
+  WindowPtr &operator=(WindowPtr &&other) noexcept{
+    if(&other != this)
+    {
+      delete ptr;
+      ptr = other.ptr;
+      other.ptr = nullptr;
+    }
+    return *this;
+  }
+}
+```
+- 和`std::vector`一样，`std::unique_ptr`也是一个类模板。他并不是一个类。
+  - `std::unique_ptr<PointeeType>`才是一个完整的类的名称
+#### How to use?
+```c++
+std::unique_ptr<Student> p(new Student("Bob",2020123123));
+```
+同样的这里的`<Student>`可以省略，因为这里的编译器可以推测
+- 相比于上面的声明一个新的智能指针而言，使用`std::make_unique<T>`更好。
+```c++
+std::unique_ptr<Student> p1 = std::make_unique<Student>("Bob",2020123123);
+auto p2 = std::make_unique<Student>("Alice",2020123123);
+```
+  - `std::make_unique<T>(args...)`会将参数`args`完美的转发i个类型`T`的构造函数，效果等同于`new T(args...)`.
+  - `std::make_unique<T>`最终返回一个指向新床架对象的`std::unique_ptr<T>`
+  - 这两种方法都可以，但是使用`std::make_unique`更加安全，因为这样避免了`new`导致的内存泄露的可能
+```c++
+std::unique_ptr<T> up;
+```
+  - 这里的`up`表示的是一个初始化的一个"空指针"，此时的`up`处于不拥有任何对象的状态。（特别强调这是一种确定的明确的行为，他并非拥有某一个不确定的值）
+- 自由的使用
+```c++
+void foo(){
+  auto pAlice = std::make_unique<Student>("Alice",2020123123);
+  if(some_conditions()){
+    auto pBob = std::make_unique<Student>("Bob",2020123123);
+  }
+}
+```
+`std::unique_ptr`自动会调用，所以不需要手动管理内存
+#### Move_Only
+同样的为了防止重复释放相同的内存地址，所以在这里不能够采用复制的防止进行内存的复制
+```c++
+auto p = std::make_unique<std::string>(5,'c');
+std::cout<< *p<<std::endl;
+auto p = q;//Error!
+auto r = std::move(p);
+std::cout<<*r<<std::endl;
+if(!p)//True
+  std::cout<<"P is \"Null\" now."<<std::endl;
+```
+所以在智能指针的管理中，我们只能够采用拷贝赋值的关系进行赋值而不能够通过`copy`赋值的手段进行赋值。
+#### Returnning a `std::unique_ptr`
+```c++
+struct Window{
+  // A typical "factory function"
+  static std::unique_ptr<Window> create(const Settings &settings){
+    auto pW = std::make_unique<Window>(/*some arguments*/);
+    logWindowCreation(pW)
+    //...
+    return pW;
+  };
+}
+auto state = Window::create(my_settings);
+```
+#### Other operations on `std::unique_ptr`
+- `std::unique_ptr`与数组之间的关系
+  - 默认情况下`std::unique_ptr<T>`的析构函数使用`delete`表达式销毁所有的持有对象。
+  - 那如果是`std::unique_ptr<T> up(new T[n]);`呢？
+    - 数组的内存是通过`new[]`来分配的，但是对于`std::unique_ptr<T>`默认西沟的时候用`delete`来释放内存。这种不匹配会导致未定义行为，因为`delete`不能够释放`new[]`的数组的内存。
+  - 怎么办？——`std::unique_ptr`针对数组类型的模板特化`std::unique_ptr<T[]>`
+    1. 模板特化：`std::unique_ptr<T[]>`是专门为表示指向“动态数组”的指针而设计的模板特化形式。
+    2. 特性：支持数组特定的操作符`operator[]`用于访问数组元素；不支持`operator*`和`operator->`因为这些操作符更适用于单个对象，而不是数组
+    3. 内存释放`delete[]`来销毁数组，与`new[]`分配的数组内存匹配，避免了普通的`std::unique_ptr<T>`管理数组是因为`delete`与`delete[]`不匹配导致的未定义行为。
+    4. 示例：
+    ```c++
+    auto up = std::make_unique<int[]>(n);//使用`std::make_unique`创建一个包含`n`个`int`元素的动态数组由std::unique_ptr<int[]>管理（这种形式的写法不能进行逐个初始化，这样写会统一的将每一个变量声明为0）
+    std::unique_ptr<int[]> up2(new int[n]{/*进行初始化*/});
+### `std::shared_ptr`
+我们之道刚才的`unique_ptr`其他的功能基本上都实现了，但是只能允许`move_copy`所以这里仍然存在一个问题
+- Ideal :Reference Counting
+set a counter that counts how many `WindowPtr` are pointing to it.
+```c++
+struct WindowWithCounter{
+  Window theWindow;
+  int refCount = 1;
+}
+```
+When a new object is created by a `WindowPtr`,set the `redfCount` to 1.
+
+When a `WIndowPtr` is copied, let it point to the same object , and increment the conter.
+```c++
+class WindowPtr {
+  WindowWithCounter *ptr;  // 指向带有引用计数的Window对象
+
+public:
+  WindowPtr(const WindowPtr &other) : ptr(other.ptr) { ++ptr->refCount; }
+
+  WindowPtr &operator=(const WindowPtr &other) {
+    ++other.ptr->refCount;
+    if (--ptr->refCount == 0)
+      delete ptr;
+    ptr = other.ptr;
+    return *this;
+  }
+
+  ~WindowPtr() {
+    if (--ptr->refCount == 0)
+      delete ptr;
+  }
+  WindowPtr(WindowPtr &&other) noexcept : ptr(other.ptr) { other.ptr = nullptr; }
+  WindowPtr &operator=(WindowPtr &&other) noexcept {
+    if (this != &other) {
+      if (--ptr->refCount == 0)
+        delete ptr;
+      ptr = other.ptr;
+      other.ptr = nullptr;
+    }
+    return *this;
+  }
+};
+```
+With the counter we can know when  to destory the object.
+- `std::shared_ptr`
+A smart pointer that uses reference counting to manage the lifetime of an object.
+```c++
+std::shared_ptr<Type> sp2(new Type(args));
+auto sp = std::make_shared<Type>(args);//Equivalent ,but better.
+```
+- `std::shared_ptr`的构造函数
+  1. `std::shared_ptr<Type> sp(new Type(args));`
+  2. `auto sp = std::make_shared<Type>(args);`
+  3. `std::shared_ptr<Type> sp = std::make_shared<Type>(args);`
+- 例子：
+```c++
+auto p = std::make_shared<Student>("Bob",2020123123);
+auto p1 = p;
+auto p2 = p;
+auto pWindow = std::make_shared<Window>(80,40,my_setting.code);
+```
+- Operations:
+  - `*`和`->`都可以像正常的指针一样使用
+  ```c++
+  auto sp = std::make_shared<std::string>(10,'c');
+  std::cout<< *sp;
+  std::cout<< sp->size();
+  - counter：
+  ```c++
+  auto sp = std::make_shared<std::string>(10, 'c');
+  {
+    auto sp2 = sp;
+    std::cout << sp.use_count() << std::endl; // 2
+    } // `sp2` is destroyed, but the managed object is not destroyed.
+    std::cout << sp.use_count() << std::endl; // 1
+  ```
+  - `std::shared_ptr`is relatively easy to use,since you are free to create many `std::shared_ptr`s pointing to one object.
+  - However `std::shared_ptr` has time and sapce overhead.Copy of a `std::shared_ptr` requires maintenance of reference counter.
+  - Does shared_ptr always correct?
+    ```c++
+    struct Node {
+      int value;
+      std::shared_ptr<Node> next;
+      Node(int x, std::shared_ptr<Node> p) : value{x},next{std::move(p)} {}
+    };
+    void foo() {
+      auto p = std::make_shared<Node>(1, nullptr);
+      p->next = std::make_shared<Node>(2, p);
+      p.reset();
+    }
+    ```
+    这种交叉赋值的情况就会导致counter永远不会降为0，最终导致程序循环
 ## 别名
 - C中的别名：`typedef long long LL;`
 - C++中的别名`using LL = long long;`
