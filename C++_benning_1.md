@@ -88,8 +88,226 @@ int main()
     ```c++
     getline(std::cin,str,'\n');
     ```
+### 命名空间`namespace`
+- 目的：
+缓解复杂软件系统（尤其是多文件项目）中的标识符冲突。
+- 作用域：
+  - 命名空间内神功的实体有独立的命名空间作用域，避免与其他同名的实体冲突
+  - 未在任何命名空间内声明的实体属于全局命名空间
+```c++
+namespace MathOperations{
+  int add(int a,int b){
+    return a+b;
+  }
+}
+
+//Global namespace
+int add(int a,int b){
+  return a-b;
+}
+
+int main(){
+  int x = 10,y = 5;
+  add(x,y);
+  MathOperatios::add(x,y);
+  return 0;
+}
+```
+解释：在这个实例中，我们定义了一个`MathOperations`的一个命名空间，这个空间中可以集成一些函数。
+#### Namespaces:Definning a Namespace
+```c++
+namespace namespace_name{
+  int a;
+  void add(){
+    //...
+  }
+  class ClassName{
+    //..
+  };
+}
+```
+- 注意，`namespace`定义后面不用打上`;`
+- Extention:A namespace can be re-opened to add further declarations
+```c++
+namespace namespace_name{
+  //Additional declarations add to the exiting namespace
+}
+```
+#### Scope Resolution Operator `::`
+- Definition:
+  - The operator `::` is uesd to explicitly specify the scope of an identifier,ensuring clarity in situations where multiple scopes define the same name.
+- 还是再看刚才的代码：
+```c++
+namespace MathOperations{
+  int add(int a,int b){
+    return a+b;
+  }
+}
+
+//Global namespace
+int add(int a,int b){
+  return a-b;
+}
+
+int main(){
+  int x = 10,y = 5;
+  add(x,y);
+  MathOperatios::add(x,y);
+  return 0;
+}
+```
+在C++中，`::`是作用域解析运算符，用于明确指定标识符所属的命名空间。例如：
+
+1. 单独使用`::`（前面没有命名空间名）表示全局命名空间：
+```cpp
+::foo(); // 调用全局命名空间中的foo函数
+```
+2. `std::`这是定义在标准库中的函数，通常使用`std`来描述。
+- 应用：在类的外部定义成员函数或者是访问全局的公开的变量或函数
+```c++
+class MyClass{
+  void display();
+  static int a;
+};
+void MyClass::display(){
+  std::cout<<"Hello";
+}
+int main(){
+  MyClassName::a = 42;
+}
+```
+3. In Function(Block) Scope.
+```c++
+using std::cout;
+using std::endl;
+
+int main() {
+    std::string first_name;
+    std::cin >> first_name;
+
+    // No need to prefix with `std::`.
+    cout << "Hello " << first_name << endl;
+
+    return 0;
+}
+```
+代码解释：
+  1. 这里将`std`中的`cout`和`endl`函数导入进全局
+  2. 所以在使用`cout`的时候不用在前面再加上前缀
+4. In class Definition
+```c++
+class Base {
+protected:
+    int protected_member;
+};
+
+class Derived : public Base {
+public:
+    using Base::protected_member; // Exposes the protected member as public.
+};
+```
+在 `Derived` 类中，使用`using Base::protected_member;` 将 `Base` 类的 `protected_member` 成员提升为 `Derived` 类的公共成员。
+#### Nested Namespaces
+namespaces can be nested,meaning you can define one namespace inside another.
+```c++
+namespace outer_namespace{
+  namespace inner_namespace{
+    //code
+  }
+}
+```
+示例：
+```c++
+#include <iostream>
+
+namespace first_space {
+void func() {
+  std::cout << "Inside first_space" << std::endl;
+}
+
+namespace second_space {
+void func() {
+  std::cout << "Inside second_space" << std::endl;
+}
+} // namespace second_space
+} // namespace first_space
+
+int main() {
+  first_space::func();
+  first_space::second_space::func();
+  return 0;
+}
+/*
+Inside first_space
+Inside second_space
+*/
+```
+### `using`-Declarations
+`using`声明用于将其他声明空间的特定名称引入当前作用域，在不牺牲代码的清晰度的前提下使代码更加简洁
+```c++
+#include <iostream>
+
+void foo() {
+  std::cout << "foo" << std::endl;
+};
+
+namespace A {
+void goo() {
+  std::cout << "goo" << std::endl;
+}
+} // namespace A
+
+namespace X {
+using ::foo;
+using A::goo;
+} // namespace X
+
+using namespace X;
+
+int main() {
+  goo();
+  foo();
+}
+```
+
+- 在`using ::foo`中这里是将全局的(`::`)`foo`引入,`A::foo`表示将`A`这个命名空间中的函数`goo`引入这里
+
+- `using namepace`表示的是将`X`命名空间引入到当前的作用域
+
+#### 命名空间指令的使用以及优先级的问题
+```c++
+#include <iostream>  
+namespace A{  
+    namespace B {  
+        int k = 9; // 定义 A::B::k  
+    }  
+    using namespace B; // 引入命名空间 B 的所有成员  
+    int k = 10; // 定义 A::k  
+    int l = k; // 错误：A::k 和 A::B::k 同时可见，产生歧义  
+}  
+int main(){  
+    std::cout << A::l;  
+}  
+```
+```c++
+#include <iostream>  
+namespace B {  
+    int k = 9; // 定义全局命名空间下的 B::k  
+}  
+namespace A{  
+    using namespace B; // 引入命名空间 B 的所有成员  
+    int k = 10; // 定义 A::k  
+    int l = k; // 正确：A::k 优先于 B::k  
+}  
+int main(){  
+    std::cout << A::l;  
+}  
+```
+- 当前作用域引入的名称始终优先于外层作用域的名称。
 ### 数据类型
+
 #### 常见的数据类型的类型字节大小以及范围
+
 ```c++
 #include <iostream>
 #include <limits>
@@ -276,10 +494,12 @@ auto *ptry = &x;//`const int*`
 ```
 - `decltype(x) y = 10;`如果`x`是`int`则会有`int y = 10;`如果`x`是`double`则会有`double y = 10;`但是如果`decltyoe(foo(x))`这里的`foo`函数并不会被调用，这里完全是计算机基于代码推测的。
 - 同时`auto`也不会对于`int`类型的越界有所操作
+
 ## C++'s string vs C's string
 1. 内存自动管理，`std::string`会自动处理内存分配和释放，创建`std::string`对象的时候，内部会根据储存需求自动妇女配内存；对象生命周期结束，会自动释放内存，无需手动处理。
 2. 动态调整储存内存，对`std::string`执行操作插入，如`insert`方法或者是删除方法，内部的内存会自动调整。
 3. 无需先是终止符`\0`，与C风格的字符串不同，`std::string`内部通过记录字符串长度而不是`\0`来识别字符出啊结尾。这使得`std::string`可以安全储存`'\0'`的字符
+4. `std::stirng`无需初始化，如果你定义一个s但是没有初始化，会自动给你默认为是一个空的字符串。
 ### Length of string
 - Member function `s.size()` and `s.empty()`
 - ```c++
@@ -315,11 +535,38 @@ std::string hello = "Hello";
 std::string s = hello+"World"+"C++";
 ```
 **Yes！`+` is left-associated**
+- 注意：
+- 在c++中完成了对`operator+`的重载，可以使用`+`对`std::string`进行重载，但是至少有一个操作的对象必须是`std::string`类型的才能实现。
+```c++
+std::string s1{"hello"};  
+std::string s2 = "world";  
+std::string s3 = s1 + "world" + "C++"; // 合法，`s1` 是 `std::string`，先与 `"world"` 拼接，再与 `"C++"` 拼接  
+s1 += s2; // 等价于 `s1 = s1 + s2`，使用复合赋值运算符拼接  
+std::string str = "Hello " + "World"; // 错误：两个操作数都是字符串字面量（`const char[N]`），无匹配的 `operator+`  
+```
 
 ### Use `+=`
 - 在C++中`a+=b`是直接在字符串后面`append`新的字符串
 - 但是如果`a = a+b`那么表示的是首先拷贝一遍`a`再将`b``append`到后面最后再拷贝回`a`（速度很慢）
 
+### Operator`[]`
+和python中的一样，我们可以通过`[]`来直接获得某个index下的元素的引用.但是在`c++`中区分了`const`下的访问和非`const`下的访问。
+```c++
+std::string s("Exampl ");  
+s[s.size() - 1] = 'e'; // 使用非 `const` 版本，修改字符串最后一个字符  
+std::cout << s << '\n'; // 输出 "Example"  
+```
+```c++
+const std::string e("Example");  
+for (unsigned i = e.length() - 1; i != 0; i /= 2)  
+    std::cout << e[i]; // 使用 `const` 版本，只能读取字符  
+std::cout << '\n'; // 输出 "emx"  
+```
+### Comparison Operators for `std::string`
+- `operator==`：判断两个`std::string`是否相等（内容完全相同）
+- `operator!=`：判断两个 `std::string` 是否不等（内容存在差异）
+- `operator<`：判断一个 `std::string` 是否小于另一个（按词典顺序）。
+- 同样的还有`operator<=``operator>=`...
 ### Deep copy in c++ string
 ```c++
 std::string s1{"Hello"};
@@ -495,7 +742,8 @@ int count_lowercase(std::string str) {
     return cnt;
 }
 ```
-这里很慢：因为每一此传递进入都会重新复制开辟一个新的字符串地址
+
+这里很慢：因为每一次传递进入都会重新复制开辟一个新的字符串地址
 ```c++
 int count_lowercase(std::string &str) {
     int cnt = 0;
@@ -522,7 +770,7 @@ const std::string &rcs = temp;
 ```c++
 int count_lowercase(const std::string &str) {
     int cnt = 0;
-    for (char c : str)
+    for (char c : str)//可以在based range for loop中传递引用char &c:str这样就可以对原来的字符串修改
         if (std::islower(c))
             ++cnt;
     return cnt;
@@ -583,12 +831,19 @@ std::vector<int> v1,std::vector<int> v2(10,42);
 v1 = v2;//copy
 ```
 ### `.size`and`.empty()`
-- `v.size()`returns the sizeof the vector.
+- `v.size()`返回一共有多少个元素
 - `v.empty()`returns 1 whether the vector is empty.
 - `v.clear()`:Remove all the elememts
-### `push_back()`,`v.back()`,`v.front()`,`v.popback()`,`v.at()`
+### Other functions
 - `v.back()`and `v.front`retruns the **Reference** to the last element
 - `v.at(Index)`returns the **Reference** element of the index.(`.at()`function has boarder chechk)
+- `==`,`>=`,`<=`,`<`这样的一些比较运算符和`std::string`中是一样的，都可以在`vector`中使用，它的比较的原理也是相同的，即通过字典序来进行比较。
+- `v.clear()`清除所有的元素
+- `v.insert(c.begin()+1,9)`表示在第二个位置插入元素`9`
+- `v.emplace(v.begin()+1,9)`就地构造一个元素，直接利用传入的参数在目标位置构造对象，避免额外的赋值或者移动操作。
+- `v.erase(v.begin()+1,v.begin()+3)`表示的是移除从第二个元素到第三个（不包括第三个）的元素
+- `v.pop_back`表示删除最后一个元素，但是如果这个`vector`本来就是空的那么会导致未定义行为。
+- `v.resize(5,0)`表示将`vector`的大小调整为5,如果要构造新的元素，那么新元素的值默认为0.
 ## 函数
 - 但是在c++中允许函数重名，但是需要能够通过传入值的不同（传递参数的个数/传递参数的类型）来区别，**注意返回值的不同不能够作为判断标准**
 - 同时和python 一样C++中的函数允许存在默认值，但是不能够像python一样通过关键字传参，因此，如果存在默认值的情况，只能够在参数的最后使用，在前面参数使用默认值而后面参数没有默认值的情况是没有效率的。
@@ -621,7 +876,7 @@ C++11中提供了对匿名函数的支持，称为`Lambda`函数，`Lambda`将�
 
 class Course {
 public:
-  std::string course;
+  std::strzheing course;
 
   Course() : course("") {}
 };
