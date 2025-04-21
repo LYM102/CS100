@@ -494,12 +494,10 @@ auto *ptry = &x;//`const int*`
 ```
 - `decltype(x) y = 10;`如果`x`是`int`则会有`int y = 10;`如果`x`是`double`则会有`double y = 10;`但是如果`decltyoe(foo(x))`这里的`foo`函数并不会被调用，这里完全是计算机基于代码推测的。
 - 同时`auto`也不会对于`int`类型的越界有所操作
-
 ## C++'s string vs C's string
 1. 内存自动管理，`std::string`会自动处理内存分配和释放，创建`std::string`对象的时候，内部会根据储存需求自动妇女配内存；对象生命周期结束，会自动释放内存，无需手动处理。
 2. 动态调整储存内存，对`std::string`执行操作插入，如`insert`方法或者是删除方法，内部的内存会自动调整。
 3. 无需先是终止符`\0`，与C风格的字符串不同，`std::string`内部通过记录字符串长度而不是`\0`来识别字符出啊结尾。这使得`std::string`可以安全储存`'\0'`的字符
-4. `std::stirng`无需初始化，如果你定义一个s但是没有初始化，会自动给你默认为是一个空的字符串。
 ### Length of string
 - Member function `s.size()` and `s.empty()`
 - ```c++
@@ -535,38 +533,11 @@ std::string hello = "Hello";
 std::string s = hello+"World"+"C++";
 ```
 **Yes！`+` is left-associated**
-- 注意：
-- 在c++中完成了对`operator+`的重载，可以使用`+`对`std::string`进行重载，但是至少有一个操作的对象必须是`std::string`类型的才能实现。
-```c++
-std::string s1{"hello"};  
-std::string s2 = "world";  
-std::string s3 = s1 + "world" + "C++"; // 合法，`s1` 是 `std::string`，先与 `"world"` 拼接，再与 `"C++"` 拼接  
-s1 += s2; // 等价于 `s1 = s1 + s2`，使用复合赋值运算符拼接  
-std::string str = "Hello " + "World"; // 错误：两个操作数都是字符串字面量（`const char[N]`），无匹配的 `operator+`  
-```
 
 ### Use `+=`
 - 在C++中`a+=b`是直接在字符串后面`append`新的字符串
 - 但是如果`a = a+b`那么表示的是首先拷贝一遍`a`再将`b``append`到后面最后再拷贝回`a`（速度很慢）
 
-### Operator`[]`
-和python中的一样，我们可以通过`[]`来直接获得某个index下的元素的引用.但是在`c++`中区分了`const`下的访问和非`const`下的访问。
-```c++
-std::string s("Exampl ");  
-s[s.size() - 1] = 'e'; // 使用非 `const` 版本，修改字符串最后一个字符  
-std::cout << s << '\n'; // 输出 "Example"  
-```
-```c++
-const std::string e("Example");  
-for (unsigned i = e.length() - 1; i != 0; i /= 2)  
-    std::cout << e[i]; // 使用 `const` 版本，只能读取字符  
-std::cout << '\n'; // 输出 "emx"  
-```
-### Comparison Operators for `std::string`
-- `operator==`：判断两个`std::string`是否相等（内容完全相同）
-- `operator!=`：判断两个 `std::string` 是否不等（内容存在差异）
-- `operator<`：判断一个 `std::string` 是否小于另一个（按词典顺序）。
-- 同样的还有`operator<=``operator>=`...
 ### Deep copy in c++ string
 ```c++
 std::string s1{"Hello"};
@@ -770,7 +741,7 @@ const std::string &rcs = temp;
 ```c++
 int count_lowercase(const std::string &str) {
     int cnt = 0;
-    for (char c : str)//可以在based range for loop中传递引用char &c:str这样就可以对原来的字符串修改
+    for (char c : str)
         if (std::islower(c))
             ++cnt;
     return cnt;
@@ -831,19 +802,12 @@ std::vector<int> v1,std::vector<int> v2(10,42);
 v1 = v2;//copy
 ```
 ### `.size`and`.empty()`
-- `v.size()`返回一共有多少个元素
+- `v.size()`returns the sizeof the vector.
 - `v.empty()`returns 1 whether the vector is empty.
 - `v.clear()`:Remove all the elememts
-### Other functions
+### `push_back()`,`v.back()`,`v.front()`,`v.popback()`,`v.at()`
 - `v.back()`and `v.front`retruns the **Reference** to the last element
 - `v.at(Index)`returns the **Reference** element of the index.(`.at()`function has boarder chechk)
-- `==`,`>=`,`<=`,`<`这样的一些比较运算符和`std::string`中是一样的，都可以在`vector`中使用，它的比较的原理也是相同的，即通过字典序来进行比较。
-- `v.clear()`清除所有的元素
-- `v.insert(c.begin()+1,9)`表示在第二个位置插入元素`9`
-- `v.emplace(v.begin()+1,9)`就地构造一个元素，直接利用传入的参数在目标位置构造对象，避免额外的赋值或者移动操作。
-- `v.erase(v.begin()+1,v.begin()+3)`表示的是移除从第二个元素到第三个（不包括第三个）的元素
-- `v.pop_back`表示删除最后一个元素，但是如果这个`vector`本来就是空的那么会导致未定义行为。
-- `v.resize(5,0)`表示将`vector`的大小调整为5,如果要构造新的元素，那么新元素的值默认为0.
 ## 函数
 - 但是在c++中允许函数重名，但是需要能够通过传入值的不同（传递参数的个数/传递参数的类型）来区别，**注意返回值的不同不能够作为判断标准**
 - 同时和python 一样C++中的函数允许存在默认值，但是不能够像python一样通过关键字传参，因此，如果存在默认值的情况，只能够在参数的最后使用，在前面参数使用默认值而后面参数没有默认值的情况是没有效率的。
@@ -876,7 +840,7 @@ C++11中提供了对匿名函数的支持，称为`Lambda`函数，`Lambda`将�
 
 class Course {
 public:
-  std::strzheing course;
+  std::string course;
 
   Course() : course("") {}
 };
@@ -1601,8 +1565,434 @@ auto pWindow = std::make_shared<Window>(80,40,my_setting.code);
     }
     ```
     这种交叉赋值的情况就会导致counter永远不会降为0，最终导致程序循环
+
+- 一个完整的智能指针的例子
+```c++
+#include <iostream>
+
+template <typename T>
+class SimpleSmartPtr {
+private:
+  T *ptr; // 管理的资源指针
+
+public:
+  // 构造函数，接收原始指针
+  explicit SimpleSmartPtr(T *p = nullptr) : ptr(p) {}
+
+  // 析构函数，释放资源
+  ~SimpleSmartPtr() {
+    delete ptr;
+    ptr = nullptr;
+  }
+
+  // 解引用操作符重载
+  T &operator*() const { return *ptr; }
+
+  // 箭头操作符重载
+  T *operator->() const { return ptr; }
+
+  // 获取原始指针
+  T *get() const { return ptr; }
+
+  // 禁用拷贝构造和赋值（确保独占性）
+  SimpleSmartPtr(const SimpleSmartPtr &) = delete;
+  SimpleSmartPtr &operator=(const SimpleSmartPtr &) = delete;
+
+  // 允许移动构造（转移资源所有权）
+  SimpleSmartPtr(SimpleSmartPtr &&other) noexcept : ptr(other.ptr) { other.ptr = nullptr; }
+
+  // 允许移动赋值（转移资源所有权）
+  SimpleSmartPtr &operator=(SimpleSmartPtr &&other) noexcept {
+    if (this != &other) {
+      delete ptr;
+      ptr = other.ptr;
+      other.ptr = nullptr;
+    }
+    return *this;
+  }
+};
+
+template <typename T>
+class RefCountSmartPtr {
+private:
+  T *ptr;        // 管理的资源指针
+  int *refCount; // 引用计数器
+
+public:
+  // 构造函数，接收原始指针
+  RefCountSmartPtr(T *p = nullptr) : ptr(p), refCount(new int(1)) {
+    if (ptr == nullptr) {
+      delete refCount;
+      refCount = nullptr;
+    }
+  }
+
+  // 析构函数，减少引用计数并释放资源
+  ~RefCountSmartPtr() {
+    if (refCount != nullptr && --*refCount == 0) {
+      delete ptr;
+      delete refCount;
+      ptr = nullptr;
+      refCount = nullptr;
+    }
+  }
+
+  // 拷贝构造函数，增加引用计数
+  RefCountSmartPtr(const RefCountSmartPtr &other) : ptr(other.ptr), refCount(other.refCount) {
+    if (refCount != nullptr) {
+      ++*refCount;
+    }
+  }
+
+  // 赋值运算符重载
+  RefCountSmartPtr &operator=(const RefCountSmartPtr &other) {
+    if (this != &other) {
+      // 处理旧资源
+      if (refCount != nullptr && --*refCount == 0) {
+        delete ptr;
+        delete refCount;
+      }
+      // 复制新资源
+      ptr = other.ptr;
+      refCount = other.refCount;
+      if (refCount != nullptr) {
+        ++*refCount;
+      }
+    }
+    return *this;
+  }
+
+  // 解引用操作符重载
+  T &operator*() const { return *ptr; }
+
+  // 箭头操作符重载
+  T *operator->() const { return ptr; }
+
+  // 获取原始指针
+  T *get() const { return ptr; }
+
+  // 获取引用计数（调试或测试用）
+  int use_count() const { return refCount ? *refCount : 0; }
+};
+
+int main() {
+  // 普通智能指针（独占资源）
+  {
+    SimpleSmartPtr<int> sp1(new int(42));
+    std::cout << "*sp1 = " << *sp1 << std::endl;
+    SimpleSmartPtr<int> sp2 = std::move(sp1); // 移动语义转移所有权
+                                              // SimpleSmartPtr<int> sp3 = sp2;  // 编译错误，拷贝被禁用
+  } // sp2 析构，释放资源
+
+  // 带引用计数器的智能指针（共享资源）
+  {
+    RefCountSmartPtr<int> sp1(new int(100));
+    RefCountSmartPtr<int> sp2(sp1);                                 // 拷贝构造，引用计数+1
+    RefCountSmartPtr<int> sp3 = sp2;                                // 赋值，引用计数+1
+    std::cout << "sp1 use count: " << sp1.use_count() << std::endl; // 输出 3
+    std::cout << "*sp3 = " << *sp3 << std::endl;                    // 输出 100
+  } // sp1、sp2、sp3 析构，引用计数递减，最后资源释放
+
+  return 0;
+}
+```
 ## 别名
 - C中的别名：`typedef long long LL;`
 - C++中的别名`using LL = long long;`
 - 注意这两个别名是存在范围的限定的它的作用域中的。
 想在外部使用:`Classname::LL x = 42;`,注意这个要求`using LL = long long`要在类内部的`public`范围中。
+
+## Operator Overloading
+
+**Operator Overloading :Provide the behaviors of operators for class type**
+
+- 类型
+  - 作为成员函数，这一些绑定到`a`这个类中，定义在类的内部
+    - `a[i]`&`a.operator[](i)`
+    - `a = b`&`a.operator=(b)`
+    - `*a`&`a.operator*()`
+  - 不是一个成员函数,定义在类的外部
+    - `a == b`&`operator==(a,b)`
+    - `a+b`&`operator+(a,b)`
+  - 有一些操作符是不能够重载的
+    - `.`,`::`,`?:`
+    - 内嵌类型的操作符是不能够重载的
+      - `MyInt operator+(int ,int)//Error`
+    - 自己定义的符号是不能重载的
+      - `double operator**(double x,double exp)//error`
+  - 有一些操作符是能够重载的，但是不推荐
+    - `cond1 && cond2`,`cond1 || cond2`
+- 重载运算符不会改变连结关系和优先级
+
+- 例子：有理数的表示
+```c++
+class Rational {
+  int m_num;
+  // numerator
+  unsigned m_denom; // denominator
+
+  void simplify() {                     // Private, because this is our implementation detail.
+    int gcd = std::gcd(m_num, m_denom); // std::gcd in <numeric> (since C++17)
+    m_num /= gcd;
+    m_denom /= gcd;
+  }
+
+  friend Rational operator-(const Rational &); // Unary `operator-` as in `-x`.
+
+public:
+  Rational(int x = 0) : m_num{x}, m_denom{1} {} // Also a default constructor.
+
+  Rational(int num, unsigned denom) : m_num{num}, m_denom{denom} { simplify(); }
+
+  double to_double() const { return static_cast<double>(m_num) / m_denom; }
+
+  Rational &operator+=(const Rational &rhs) {
+    m_num = m_num * static_cast<int>(rhs.m_denom) // Be careful with `unsigned`!
+            + static_cast<int>(m_denom) * rhs.m_num;
+    m_denom *= rhs.m_denom;
+    simplify();
+    return *this; // `x += y` should return a reference to `x`.
+  }
+
+  Rational &operator-=(const Rational &rhs) {
+    // Makes use of `operator+=` and the unary `operator-`.
+    return *this += -rhs;
+  }
+
+  Rational &operator++() {//前置++
+    ++m_num;
+    simplify();
+    return *this;
+  }
+
+  Rational operator++(int) {//后置++，这里的int没有实际的含义仅仅只是表示后置
+    auto temp = *this;
+    ++*this;//调用前置++
+    return temp;
+  }
+};
+
+Rational operator-(const Rational &x) {
+  return {-x.m_num, x.m_denom};
+  // The above is equivalent to `return Rational(-x.m_num, x.m_denom);`.
+}
+
+Rational operator+(const Rational &lhs, const Rational &rhs) {
+  return Rational(lhs) += rhs; // Makes use of `operator+=`.
+}
+
+Rational operator-(const Rational &lhs, const Rational &rhs) {
+  return Rational(lhs) -= rhs; // Makes use of `operator-=`.
+}
+
+bool operator<(const Rational &lhs,const Rational &rhs){
+  return (lhs.m_num * rhs.m_denom < rhs.m_num * lhs.m_denom);
+}
+```
+以上是一些常见的重载运算符，下面我们再来看IO的operator的重载
+
+Input Operator:
+
+`std::istream &operator>>(std::istream &,Rational &);`
+
+Output Operator:
+
+`std::ostream &operator<<(std::ostream &,const Rational &);`
+
+`std::cin`is type `std::istream`, and `std::cout` is of type `std::ostream`
+（`std::cin`是`ostream`的一个具体的实例）
+
+所以我们根据这个原理构造一个`operator<<`和`operator>>`
+```c++
+class Rational{
+  friend std::ostream &operator<<(std::ostream &,const Rational &);
+};
+std::ostream &operator<<(std::ostream &os,const Rational &r){
+  return os << r.m_num << '/' << r.m_denom;
+}
+```
+
+`Rational`:input operator
+
+```c++
+std::istream &operator>>(std::istream &is,Rational &r){
+  int x,y;is>>x>>y;//定义两个整数，同时从输入流中依次读取这两个整数
+  if(!is){//表示判断是否正确读取
+    x = 0;
+    y = 1;
+  }
+  if(y<0){y = -y;x = -x}//保证负号一定在分子上
+  r = Rational(x,y);
+  return is;//确保可以继续输入
+}
+```
+
+- 例子：Dynarray
+
+- `Operator[]`
+```c++
+class Dynarray {
+public:
+  int &operator[](std::size_t n) { return m_storage[n]; }
+
+  const int &operator[](std::size_t n) const { return m_storage[n]; }
+};
+```
+
+- 例子`WindowPtr`
+```c++
+struct WindowWithCounter {
+  Window theWindow;
+  int refCount = 1;
+};
+
+class WindowPtr {
+  WindowWithCounter *m_ptr;
+
+public:
+  Window &operator*() const { // Why should it be const?
+    return m_ptr->theWindow;
+  }
+};
+```
+为什么这里要是`const`?
+  1. `operator*()`函数没有修改`WindowPtr`本身
+  2. 这是一个顶层`const`，指针本身不可变，被管理的`Window`对象`(m_ptr->theWindow)`并非`const`声明`operator*()`为`cosnt`既保证了`m_ptr`不会指向其他的对象，同时也可以对`theWindow`进行修改。
+
+同样的我们还可以定义`operator->()`
+```c++
+class WindowPtr {
+public:
+  Window *operator->() const { return std::addressof(operator*()); }
+};
+```
+对于基层的指针而言，`->`操作符直接返回底层对象的成员指针，等价于`(*ptr).mem`，它返回的还是一个指针?
+
+为什么不直接返回原指针？因为如果在获得指针的地址的时候对指针包括逻辑的判断，那么就不能够直接返回原指针。
+
+完整示例
+```c++
+#include <iostream>
+#include <memory> // std::addressof
+
+class Window {
+  // 假设 Window 是一个普通类
+public:
+  void display() const { std::cout << "Window displayed\n"; }
+};
+
+class WindowPtr {
+private:
+  Window *ptr; // 假设 WindowPtr 内部管理一个 Window 指针
+
+public:
+  // 构造函数
+  explicit WindowPtr(Window *p = nullptr) : ptr(p) {}
+
+  // operator* 的定义
+  Window &operator*() const {
+    if (ptr == nullptr) {
+      throw std::runtime_error("Dereferencing null pointer");
+    }
+    return *ptr;
+  }
+
+  // operator-> 的定义
+  Window *operator->() const {
+    if (ptr == nullptr) {
+      throw std::runtime_error("Accessing null pointer");
+    }
+    return std::addressof(operator*());
+  }
+};
+
+int main() {
+  Window window;
+  WindowPtr ptr(&window);
+
+  // 测试 operator->
+  ptr->display(); // 应输出 "Window displayed"
+
+  // 测试 operator*
+  (*ptr).display(); // 应输出 "Window displayed"
+
+  return 0;
+}
+```
+
+## User-defined type conversions
+- 底层逻辑：一个类中恰好有一个参数类型是`T`的构造函数，可实现从`T`到`X`的类型转换。实例`std::string`有一个接受`const char*`的构造函数，因此`const char*`可以隐式转换成为`std::string`;
+```c++
+class Rational {  
+public:  
+    // 定义从 Rational 到 double 的转换操作符  
+    operator double() const { return 1.0 * m_num / m_denom; }  
+};  
+Rational r(3, 4);  
+double dval = r;  // 调用 operator double()，将 r 转换为 double，结果为 0.75  
+```
+### 类转换符(Type conversion operator)
+```c++
+class Rational {  
+public:  
+    // 定义从 Rational 到 double 的类型转换操作符  
+    operator double() const { return 1.0 * m_num / m_denom; }  
+};  
+Rational r(3, 4);  
+double dval = r;  // 自动调用 operator double()，将 r 转换为 double，结果为 0.75  
+```
+- 函数命名：
+  - 函数名固定为`operator T()`其中`T`表示的是目标类型。
+  - 返回类型：返回类型是`T`但在函数定义的时候不用显示的写出来
+  - 常量属性：类型转换通常是只读形式，因此该操作符通常被声明为`cosnt`函数
+- 但是我们并不是每次都希望这样的转换产生
+  - 我们可以定义`explicit`关键字，表示不能通过构造函数来进行隐式转换
+  ```c++
+  class string { // Suppose this is the `std::string` class.
+  public:
+    string(const char *cstr); // Not marked `explicit`. Implicit use is allowed.
+  };
+
+  template <typename T>
+  class vector { // Suppose this is the `std::vector` class.
+  public:
+    explicit vector(std::size_t n); // Implicit use is not allowed.
+  };
+
+  class Dynarray {
+  public:
+    explicit Dynarray(std::size_t n) : m_length{n}, m_storage{new int[n]{}} {}
+  };
+  ```
+  - 同样的，我们自己定义的类型转换的时候如果加上`explicit`那么就只能接受显示转换不能够隐式调用
+```c++
+class Rational {
+public:
+  explicit operator double() const { return 1.0 * m_mun / m_denom; }
+};
+
+Rational r(3, 4);
+double d = r; // Error
+
+void foo(double x) {}
+
+foo(r);                      // error
+foo((double)r);              // ok
+foo(static_cast<double>(r)); // ok
+```  
+
+同样的我们还可以定义`bool`类型的类型转化
+
+```c++
+class WindowPtr {
+    WindowWithCounter *m_ptr;
+public:
+    // 假设已有其他成员函数（如构造函数等）
+    explicit operator bool() const {
+        return m_ptr != nullptr;
+    }
+};
+```
+- 这里使用`explicit operator bool()`来实现`WindowPtr`到`bool`的转换。
+  - 使用`explicit`是为了避免意外导致的隐式转换
+  - 函数体内通过`return m_ptr != nullptr`来判断`WindowPtr`管理的指针是否是空指针。
