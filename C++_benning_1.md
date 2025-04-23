@@ -1996,3 +1996,295 @@ public:
 - 这里使用`explicit operator bool()`来实现`WindowPtr`到`bool`的转换。
   - 使用`explicit`是为了避免意外导致的隐式转换
   - 函数体内通过`return m_ptr != nullptr`来判断`WindowPtr`管理的指针是否是空指针。
+
+## Iterator(类似于一个指针)
+- `.begin()`表示的是迭代器的首元素
+- `.end()`返回的是最后一个元素的`next`叫做`off-the-end`
+
+### Iterators:
+
+范围是从$[c.begin(),c.end())$,`c.end()-c.begin()=length`如果有`c.begin() == c.end()`那么可知这个是一个空的迭代器
+
+和指针类似，迭代器也存在一些相关的特殊符
+- `*it`:returns a reference to the element that `it` refers to 
+- `it->mem`:equivalent to `(*it).mem`
+- `++it`:`it++` move `it` one step forward, so that `it` refers to the `next` elememt.注意`++it`返回的是`it`的引用，但是`it++`返回的是一个自增前的一个`copy`
+- `it1==it2`:checks whether `it1` and `it2` refer to the same position in the container.
+- `it1 != it2`:equivalent to `!(it1 == it2)`
+
+```c++
+void sqapcase(std::string &str){
+  for(auto it = str.begin();it != str.end() ; ++it){
+    if(std::islower(*it))
+      *it = std::toupper(*it);
+    else if(std::isupper(*it))
+      *it = std::tolower(*it);
+  } 
+}
+void print(const std::vector<int> &vec){
+  for(auto it = vec.begin(); it!= vec.end(); ++it)
+    std::cout << *it << ' ';
+}
+```
+### 内置指针作为迭代器
+
+内置指针作为迭代器，他们充当数组的迭代器来实现相同的功能。
+
+例子1：数组的迭代器（内置指针）
+```c++
+#include <iostream>
+#include <iterator> // 包含 std::begin 和 std::end
+
+int main() {
+    int arr[] = {10, 20, 30, 40}; // 长度为 4 的数组
+    int* begin_iter = arr;         // 等价于 std::begin(arr)，指向首元素 10
+    int* end_iter = arr + 4;       // 等价于 std::end(arr)，指向尾元素下一位置（越界指针）
+
+    // 使用迭代器遍历数组
+    for (int* it = begin_iter; it != end_iter; ++it) {
+        std::cout << *it << " "; // 输出：10 20 30 40
+    }
+    return 0;
+}
+```
+
+例子2：容器的迭代器
+```c++
+#include <vector>
+#include <iostream>
+#include <iterator> // 包含 std::begin 和 std::end
+
+int main() {
+    std::vector<int> vec = {1, 2, 3, 4}; // vector 容器
+    auto vec_begin = std::begin(vec);    // 等价于 vec.begin()，指向首元素 1
+    auto vec_end = std::end(vec);        // 等价于 vec.end()，指向尾元素下一位置
+
+    // 使用迭代器遍历容器
+    for (auto it = vec_begin; it != vec_end; ++it) {
+        std::cout << *it << " "; // 输出：1 2 3 4
+    }
+    return 0;
+}
+```
+
+例子3；`std::begin/std::end`统一处理数组和容器
+
+Range-for demystified
+```c++
+#include <array>      // C++11 数组容器
+#include <iostream>
+#include <iterator>
+
+template <typename Container>
+void print_elements(Container& c) {
+    auto begin = std::begin(c); // 自动适配数组或容器
+    auto end = std::end(c);
+    for (; begin != end; ++begin) {
+        std::cout << *begin << " ";
+    }
+    std::cout << std::endl;
+}
+
+int main() {
+    int arr[] = {5, 10, 15};           // 普通数组
+    std::array<double, 3> arr_container = {1.1, 2.2, 3.3}; // 数组容器
+
+    print_elements(arr);          // 输出：5 10 15
+    print_elements(arr_container); // 输出：1.1 2.2 3.3
+    return 0;
+}
+```
+
+### 是否可以解引用
+
+和指针相似，只有当迭代器指向一个实际存在的元素的时候才能对它进行解引用（`*it`）.若迭代器不知想有效元素，会导致未定义行为。
+
+实例说明：
+- `*v.end()`是未定义行为。因为`v.end()`返回的只是一个有效位置但是并不会指向一个存在的元素
+- 注意`it`如果不能够解引用，那么`++it`是未定行为，这意味着将迭代器移动到`[begin,off_the_end]`范围之外（超出合法元素区间）
+
+### 迭代器失效（Iterators:invalidation）
+
+例子：
+```c++
+Type *storage = new Type[n];  
+Type *iter = storage;  
+delete[] storage;  
+// 此时 `iter` 不再指向任何存在的元素  
+```
+
+容器操作导致迭代器失效：
+1. `std::vecotr`插入导致迭代器失效
+
+当`vector`容量不足的时候，插入元素会触发内存重新分配，所有原有的迭代器都会失效
+```c++
+#include <vector>  
+int main() {  
+    std::vector<int> vec = {1, 2, 3};  
+    auto it = vec.begin(); // 记录初始迭代器  
+    vec.push_back(4);      // 假设触发扩容，内存重新分配  
+    // 此时 `it` 失效，指向已释放的旧内存，解引用会导致未定义行为  
+    // *it; // 危险！  
+    return 0;  
+}  
+```
+
+2. `std::vector`删除导致迭代器失效
+
+删除元素之后，被删除元素及后续的迭代器失效
+
+```c++
+#include <vector>  
+int main() {  
+    std::vector<int> vec = {1, 2, 3, 4, 5};  
+    auto it = vec.begin() + 2; // 指向元素 3  
+    vec.erase(vec.begin() + 1); // 删除元素 2，后续元素前移  
+    // 此时 `it` 实际指向原元素 4（逻辑上位置改变），若继续按原逻辑操作会出错  
+    return 0;  
+}  
+```
+
+3. `std::deque`中间插入导致迭代器失效
+```c++
+#include <deque>  
+int main() {  
+    std::deque<int> dq = {1, 2, 3};  
+    auto it = dq.begin() + 1; // 指向元素 2  
+    dq.insert(dq.begin() + 1, 0); // 中间插入元素 0  
+    // 此时 `it` 失效，指向无效位置  
+    // *it; // 危险！  
+    return 0;  
+}  
+```
+
+4. `std::list`删除当前迭代器指向的元素
+```c++
+#include <list>  
+int main() {  
+    std::list<int> lst = {1, 2, 3};  
+    auto it = lst.begin();  
+    lst.erase(it); // 删除元素 1，`it` 失效  
+    // ++it; // 危险！失效迭代器递增无意义  
+    return 0;  
+}  
+```
+
+### More operations on iterators
+ 
+
+1. **前向迭代器（ForwardIterator）**：
+
+   支持 `*it`（解引用获取元素）、`it->mem`（通过迭代器访问元素成员）、`++it`（前置递增）、`it++`（后置递增）、`it1 == it2`（相等判断）和 `it1 != it2`（不等判断）的迭代器。这类迭代器只能单向移动，逐个访问元素。  
+
+2. **双向迭代器（BidirectionalIterator）**：  
+
+   在 `ForwardIterator` 基础上，支持双向移动，额外增加了 `--it`（前置递减）和 `it--`（后置递减）操作，允许反向遍历元素。  
+
+3. **随机访问迭代器（RandomAccessIterator）**：  
+
+   是 `BidirectionalIterator` 的扩展，能在常数时间内直接移动到任意位置，支持更多操作：  
+   - 算术运算：`it + n`（迭代器后移 `n` 个位置）、`n + it`（同上）、`it - n`（迭代器前移 `n` 个位置）、`it += n`（复合后移）、`it -= n`（复合前移）。  
+   - 下标访问：`it[n]`，等价于 `*(it + n)`。  
+   - 距离计算：`it1 - it2`，返回两个迭代器之间的元素个数。  
+   - 关系比较：`<`（小于）、`<=`（小于等于）、`>`（大于）、`>=`（大于等于），可直接比较迭代器位置。  
+   **`std::string::iterator` and `std::vector<T>::iterator` are in this category**
+
+### Initialization from iterator range
+```c++
+std::vector<char> v = {'a','b','c','d'};
+std::vector v2(v.begin(),v.end()-1);
+std::string s(v.begin()+1,v.end());
+```
+
+## Algorithms
+定义对象
+```c++
+int a[N],b[N];
+std::vector<int> v;
+```
+1. 对数组排序
+```c++
+std::sort(a,a+N);
+```
+使用`std::sort`算法对数组`a`排序，`a`和`a+N`构成迭代器范围（数组指针本质是迭代器）
+2. 对容器排序
+```c++
+std::sort(a,a+N);
+```
+使用`std::sort`算法对数组`a`，进行排序`a`,`a+N`构成迭代器范围（数组指针本质也是迭代器）
+3. 对容器排序
+```c++
+std::sort(v.begin(),v.end());
+```
+对`vector`容器`v`排序，`v.begin()`指向首元素，`v.end()`指向末尾元素
+4. 元素复制
+```c++
+std::copy(a,a+N,b);
+```
+将`[a,a+N)`范围的元素赋值到以`b`开头的空间，`std::copy`利用空间迭代器对指定源范围和目标起始位置。
+5. 部分元素排序
+```c++
+std::sort(v.begin(),v.begin()+10)
+```
+仅对`v`的前十个元素排序,通过`v.begin()`和`v.begin()+10`限定范围
+
+### 算法接口特性
+后缀为`_n`的算法如(`copy_n`,`fill_n`)通过其实起始迭代器`begin()`和整数`n`表示操作范围`[begin,begin+n)`
+
+- 实例：
+```c++
+Dynarray::Dynarray(const int *begin, const int *end)  
+    : m_storage{new int[end - begin]}, m_length(end - begin) {  
+    std::copy(begin, end, m_storage); // 用 `copy` 算法（非 `_n` 后缀，用迭代器对）复制 `[begin, end)` 范围元素到 `m_storage`  
+}  
+```
+利用`std::copy`，通过迭代器对`begin`和`end`界定范围，将元素复制到新分配的`m_storage`
+
+```c++
+Dynarray::Dynarray(const Dynarray &other)  
+    : m_storage{new int[other.size()]}, m_length{other.size()} {  
+    std::copy_n(other.m_storage, other.size(), m_storage); // 用 `copy_n`，从 `other.m_storage` 开始复制 `other.size()` 个元素到 `m_storage`  
+}  
+```
+
+```c++
+Dynarray::Dynarray(std::size_t n, int x = 0)  
+    : m_storage{new int[n]}, m_length{n} {  
+    std::fill_n(m_storage, m_length, x); // 用 `fill_n`，将 `m_storage` 开始的 `m_length` 个元素填充为 `x`  
+}  
+```
+
+### Algorithms:requirements
+1. 对迭代器类型的要求
+- `std::sort`算法需要**随机访问迭代器**，因为内部实现以来随机访问的特性
+- `std::copy`算法允许**输入迭代器**，只要诸葛读取元素即可。
+
+2. 元素类型的要求
+需要比较元素的算法，通常仅以来元素的`operator<`和`operator==`例如，对`std::vecotr<X>`进行排序的时候，无需定义`X`的全部六个比较操作符`<`,`>`
+
+### 算法和容器长度的关系
+由于向算法传递的是迭代器而不是容器本身，**标准库算法不会修改容器的长度**.例如`std::copy`仅仅是复制元素，不会插入新的元素。
+```c++
+std::vector<int> a = someValues();  
+std::vector<int> b(a.size());  
+std::vector<int> c{};  
+std::copy(a.begin(), a.end(), b.begin()); // 合法操作，b 有足够空间容纳复制的元素  
+std::copy(a.begin(), a.end(), c.begin()); // 未定义行为！c 无足够空间，算法不会自动调整容器大小  
+```
+#### 常见分类
+##### 1. 非修改性序列操作（Non - modifying sequence operations）  
+这类算法不会修改容器中的元素，仅用于查找或统计：  
+- **`count(begin, end, x)`**：统计区间 `[begin, end)` 内等于 `x` 的元素个数。  
+- **`find(begin, end, x)`**：在区间 `[begin, end)` 中查找第一个等于 `x` 的元素。  
+- **`find_end(begin, end, x)`**：在区间 `[begin, end)` 中查找最后一个等于 `x` 的元素。  
+- **`find_first_of(begin, end, x)`**：在区间 `[begin, end)` 中查找第一个与 `x` 匹配的元素。  
+- **`search(begin, end, pattern_begin, pattern_end)`**：在区间 `[begin, end)` 中查找与子序列 `[pattern_begin, pattern_end)` 匹配的位置。  
+
+##### 2. 修改性序列操作（Modifying sequence operations）  
+这类算法会修改容器元素的排列或值：  
+- **`copy(begin, end, dest)`**：将区间 `[begin, end)` 的元素复制到以 `dest` 开头的位置。  
+- **`fill(begin, end, x)`**：将区间 `[begin, end)` 的元素填充为 `x`。  
+- **`reverse(begin, end)`**：反转区间 `[begin, end)` 内元素的顺序。  
+- **`unique(begin, end)`**：  
+  - 要求区间 `[begin, end)` 内的元素 **已排序**（默认升序）。  
+  - 它不会真正删除重复元素，而是将重复元素移动到区间末尾，并返回一个迭代器 `pos`，使得 `[begin, pos)` 内没有重复元素。例如，对于已排序的序列，它会整理出不重复的前端子序列。 
