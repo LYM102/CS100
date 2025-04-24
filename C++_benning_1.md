@@ -1164,7 +1164,7 @@ class ClassA{
 }
 ```
 示例
-```c++
+```c++ 
 #include <iostream>
 #include <string>
 using namespace std;
@@ -1248,6 +1248,7 @@ void fun(std::string &&s)//接受一个右值     fun(s1+s2)
     - 两者不同的应用场景
         - 移动构造函数：在创建新对象的时候调用，例如再函数返回临时对象、使用`std::move`强制转换成为右值的时候进行初始化等场景中
         - 移动复制运算符：在对已经存在的对象进行赋值操作的时候调用，例如将一个临时对象赋值给一个已经存在的对象。
+    - **什么时候需要写`noexcept`:当自定义移动构造和移动赋值运算的时候需要写`noexcept`**
 #### Constructor
 ```c++
 #include <iostream>
@@ -1359,12 +1360,14 @@ struct WindowPtr{
 - 解决方法：
 1. `WindowPtr copy(new Window(*pWindow.ptr))`深拷贝
 
-解释：`pWindow.ptr`是原来的`pWindow`指针这个时候见他解引用然后再重新声明一个`Window`类的指针将他赋值给一个新的`copy`，这样`copy`和原来的指针的内容一样，但是拥有不同的地址。
+解释：`pWindow.ptr`是原来的`pWindow`指针,这个时候见他解引用然后再重新声明一个`Window`类的指针将他赋值给一个新的`copy`，这样`copy`和原来的指针的内容一样，但是拥有不同的地址。
+
 2. `WindowPtr copy(pWindow.ptr)`浅拷贝
 
 解释：要采用这样的拷贝方式就会导致两个指针指向的是同一个地址，这样的话，要设计特殊的计数方式来让两个指针只会被`delete`一遍
 
 3. 禁止指针的复制
+
 ### 关于智能指针
 - **智能指针定义**：智能指针是一种管理资源的指针。  
 - **智能指针复制的可能行为**：  
@@ -1372,8 +1375,6 @@ struct WindowPtr{
   2. **复制指针，但有特殊设计（指针语义）**：复制指针本身，但通过特殊机制（如引用计数）避免资源管理问题。典型代表是 `std::shared_ptr<T>`，定义在标准库头文件 `<memory>` 中，它允许多个指针共享同一资源，通过引用计数管理资源的生命周期。  
   3. **禁用复制（唯一所有权）**：禁止复制操作，确保资源的唯一所有权。例如 `std::unique_ptr<T>`，也定义在 `<memory>` 中，它保证同一时刻只有一个指针拥有资源，不能共享所有权。  
 - **智能指针与垃圾回收**：`std::shared_ptr<T>`、`std::unique_ptr<T>` 和 `std::weak_ptr<T>` 是 C++ 对垃圾回收机制的一种实现方式，用于自动管理动态分配的资源，避免内存泄漏等问题。其中 `std::weak_ptr<T>` 在 CS100 课程中未涉及。  
-
-
 - **智能指针与垃圾回收**：`std::shared_ptr<T>`、`std::unique_ptr<T>` 和 `std::weak_ptr<T>` 是 C++ 针对垃圾回收机制的解决方案，用于自动管理动态分配的资源，避免内存泄漏等问题。  
 
 - **智能指针与原始指针操作的相似性**：  
@@ -1395,8 +1396,7 @@ public:
   WindowPtr(const WindowPtr &) = delete;//禁止任何复制行为
   WindowPtr(WindowPtr &&other) noexcept : ptr(other.ptr) { other.ptr = nullptr; }//构造move函数
   WindowPtr &operator=(WindowPtr &&other) noexcept{
-    if(&other != this)
-    {
+    if(&other != this){
       delete ptr;
       ptr = other.ptr;
       other.ptr = nullptr;
@@ -1407,8 +1407,11 @@ public:
 ```
 - 和`std::vector`一样，`std::unique_ptr`也是一个类模板。他并不是一个类。
   - `std::unique_ptr<PointeeType>`才是一个完整的类的名称
+
 #### How to use?
 ```c++
+auto p = std::make_unique<int>(42);
+std::unique_ptr<int> p(new int(42));
 std::unique_ptr<Student> p(new Student("Bob",2020123123));
 ```
 同样的这里的`<Student>`可以省略，因为这里的编译器可以推测
@@ -1445,7 +1448,10 @@ std::cout<<*r<<std::endl;
 if(!p)//True
   std::cout<<"P is \"Null\" now."<<std::endl;
 ```
-所以在智能指针的管理中，我们只能够采用拷贝赋值的关系进行赋值而不能够通过`copy`赋值的手段进行赋值。
+所以在智能指针的管理中，我们只能够采用移动赋值的关系进行赋值而不能够通过`copy`赋值的手段进行赋值。
+
+注意但是如果是加上了顶层的`const`，那么智能指针指向的地址是一个不能改变的，所以这个时候不能通过移动赋值语句进行赋值。
+
 #### Returnning a `std::unique_ptr`
 ```c++
 struct Window{
@@ -1472,8 +1478,9 @@ auto state = Window::create(my_settings);
     ```c++
     auto up = std::make_unique<int[]>(n);//使用`std::make_unique`创建一个包含`n`个`int`元素的动态数组由std::unique_ptr<int[]>管理（这种形式的写法不能进行逐个初始化，这样写会统一的将每一个变量声明为0）
     std::unique_ptr<int[]> up2(new int[n]{/*进行初始化*/});
+    ```
 ### `std::shared_ptr`
-我们之道刚才的`unique_ptr`其他的功能基本上都实现了，但是只能允许`move_copy`所以这里仍然存在一个问题
+我们知道刚才的`unique_ptr`其他的功能基本上都实现了，但是只能允许`move_copy`所以这里仍然存在一个问题
 - Ideal :Reference Counting
 set a counter that counts how many `WindowPtr` are pointing to it.
 ```c++
@@ -1517,16 +1524,20 @@ public:
 };
 ```
 With the counter we can know when  to destory the object.
+
 - `std::shared_ptr`
-A smart pointer that uses reference counting to manage the lifetime of an object.
+- A smart pointer that uses reference counting to manage the lifetime of an object.
+
 ```c++
 std::shared_ptr<Type> sp2(new Type(args));
 auto sp = std::make_shared<Type>(args);//Equivalent ,but better.
 ```
+
 - `std::shared_ptr`的构造函数
   1. `std::shared_ptr<Type> sp(new Type(args));`
   2. `auto sp = std::make_shared<Type>(args);`
   3. `std::shared_ptr<Type> sp = std::make_shared<Type>(args);`
+
 - 例子：
 ```c++
 auto p = std::make_shared<Student>("Bob",2020123123);
@@ -1565,8 +1576,7 @@ auto pWindow = std::make_shared<Window>(80,40,my_setting.code);
     }
     ```
     这种交叉赋值的情况就会导致counter永远不会降为0，最终导致程序循环
-
-- 一个完整的智能指针的例子
+### Example of use smart pointer
 ```c++
 #include <iostream>
 
@@ -1807,6 +1817,7 @@ Output Operator:
 class Rational{
   friend std::ostream &operator<<(std::ostream &,const Rational &);
 };
+
 std::ostream &operator<<(std::ostream &os,const Rational &r){
   return os << r.m_num << '/' << r.m_denom;
 }
