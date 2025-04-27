@@ -817,6 +817,42 @@ C++11中提供了对匿名函数的支持，称为`Lambda`函数，`Lambda`将�
 1. 如果在括号中没有参数的传递，那么就没有办法对外部的参数进行引用
 2. 如果要将所有的外部的副本全部传递进来，应该使用`[=]{}`
 3. 如果要将外部的所有的变量都引用调入则应该使用`[&]`
+```c++
+std::sort(v.begin(),v.end(),[](int a,int b){return std::abs() < std::abs(b);})
+
+auto pos = std::find_if(v.begin(),v.end(),[k](int x) {return x<k;});
+
+
+
+// 使用返回对象来延长函数的声明周期
+int k = 42;
+auto f = [k](int x)->bool {return x<k ;};
+bool b1 = f(10);//调用刚才的函数
+fool b2 = f(100);
+
+
+
+//lambda 函数可以是复杂的
+struct Point2d {
+  double x, y;
+};
+std::vector<Point2d> points = somePoints();
+// prints the l2-norm of every point
+std::for_each(points.begin(), points.end(), [](const Point2d &p) {
+  auto norm = std::sqrt(p.x * p.x + p.y * p.y);
+  std::cout << norm << std::endl;
+});
+
+
+// 和正常函数一样，传入的参数有传入拷贝和引用的区别
+std::string str = someString();
+std::vector<std::string> wordList;
+// finds the first string that is lexicographically greater than `str`,
+// but shorter than `str`.
+auto pos = std::find_if(
+    wordList.begin(), wordList.end(), [&str](const std::string &s) { return s > str && s.size() < str.size(); });
+
+```
 ### Function Overloding
 - Resolution
     - An exact match
@@ -2273,6 +2309,78 @@ Dynarray::Dynarray(std::size_t n, int x = 0)
 2. 元素类型的要求
 需要比较元素的算法，通常仅以来元素的`operator<`和`operator==`例如，对`std::vecotr<X>`进行排序的时候，无需定义`X`的全部六个比较操作符`<`,`>`
 
+3. Predicate
+```c++
+struct Point2d{
+  double x,y;
+};
+std::vector<Point2d> points = someValue();
+```
+如果我们要对他进行排序，要么你要定义一个`operator<`或者是采用自定义外部函数进行构造
+
+```c++
+bool cmp_by_x(const Point2d &lhs,const Point2d &rhs){
+  return lhs.x < rhs.x;
+}
+std::sort(point.begin(),point.end(),cmp_by_x);
+```
+也就是定义一个规则，因为`sort()`最终会达到的结果是`sort()`中的左侧的每一个元素和每一个元素后面的一个元素之间满足`cmp_by_x`的结果返回`true`（从小到大）。
+
+```c++
+// 从大到小排序
+bool greater_than(int a, int b) { return a > b; }
+std::sort(v.begin(), v.end(), greater_than);
+```
+
+```c++
+//绝对值得判断方法
+bool abs_less(int a, int b) { return std::abs(a) < std::abs(b); } // <cmath>
+std::sort(v.begin(), v.end(), abs_less)
+```
+
+```c++
+//同样的也可以只传入一个参数（本质还是让每一次`sort`返回的都是`true`）
+bool less_than_10(int x) {
+  return x < 10;
+}
+std::vector<int> v = someValues();
+auto pos = std::find_if(v.begin(), v.end(), less_than_10);
+```
+
+同样的，你也可以传递一个`struct`
+```c++
+struct LessThan {
+  int k_;
+  LessThan(int k) : k_{k} {}
+  bool operator()(int x) const {
+    return x < k_;
+  }
+};
+auto pos = std::find_if(v.begin(), v.end(), LessThan(k));
+```
+
+这个时候在`find_if`在操作的时候会默认为`LessThan`为一个函数，调用`()`的重载函数
+
+```c++
+struct LessThan {
+  int k_;
+  bool operator()(int x) const {
+    return x < k_;
+  }
+};
+auto pos = std::find_if(v.begin(), v.end(), LessThan{k});
+```
+使用大括号的形式，避免了构造函数的重复定义
+
+```c++
+struct AbsCmp {
+  bool operator()(int a, int b) const {
+    return std::abs(a) < std::abs(b);
+  }
+};
+std::sort(v.begin(), v.end(), AbsCmp{});
+```
+同样的使用`(a,b)`双参数的构造形式，来完成传递两个参数的情况的定义。
 ### 算法和容器长度的关系
 由于向算法传递的是迭代器而不是容器本身，**标准库算法不会修改容器的长度**.例如`std::copy`仅仅是复制元素，不会插入新的元素。
 ```c++
@@ -2288,7 +2396,11 @@ std::copy(a.begin(), a.end(), c.begin()); // 未定义行为！c 无足够空间
 - **`count(begin, end, x)`**：统计区间 `[begin, end)` 内等于 `x` 的元素个数。  
 - **`find(begin, end, x)`**：在区间 `[begin, end)` 中查找第一个等于 `x` 的元素。  
 - **`find_end(begin, end, x)`**：在区间 `[begin, end)` 中查找最后一个等于 `x` 的元素。  
-- **`find_first_of(begin, end, x)`**：在区间 `[begin, end)` 中查找第一个与 `x` 匹配的元素。  
+- **`find_first_of(begin, end, x)`**：在区间 `[begin, end)` 中查找第一个与 `x` 匹配的元素。 
+  - 使用`if`来判断是否查找到相应元素
+    - `if(std::find(v.begin(),v.end(),something) != v.end()){/*...*/}`
+    - `if(auto pos = std::find(v.begin(),v.end(),something;pos != v.end()))`
+  - 这两种方式都是正确的，只是第二种属于`if`的特殊操作`if(init_expr;condition)` 
 - **`search(begin, end, pattern_begin, pattern_end)`**：在区间 `[begin, end)` 中查找与子序列 `[pattern_begin, pattern_end)` 匹配的位置。  
 
 ##### 2. 修改性序列操作（Modifying sequence operations）  
