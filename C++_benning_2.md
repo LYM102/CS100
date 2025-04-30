@@ -407,3 +407,210 @@ auto getType(const A *ap) {
 - 效率优势
 - **虚函数调用机制**：虚函数是通过虚函数表（vtable）来实现的，在编译时就已经确定了虚函数表的布局，运行时只需要通过对象的指针找到对应的虚函数表，然后调用相应的函数。这种机制比 `dynamic_cast` 的运行时类型检查要快得多。
 - **单次调用**：只需要进行一次虚函数调用，避免了多次类型检查，减少了不必要的开销。
+
+## Pure virtual functions
+### 定义：
+```c++
+class Base {
+public:
+    virtual void func() = 0; // 纯虚函数
+    virtual ~Base() = default; // 建议将析构函数设为虚函数
+};
+```
+### 应用：
+1. 定义接口
+```c++
+class Shape {
+public:
+    virtual double area() const = 0; // 计算面积
+    virtual ~Shape() = default;
+};
+
+class Circle : public Shape {
+private:
+    double radius;
+public:
+    Circle(double r) : radius(r) {}
+    double area() const override { return 3.14 * radius * radius; }
+};
+```
+2. 实现运行时候的多态：
+```c++
+Shape* shape = new Circle(5);
+std::cout << shape->area(); // 调用 Circle::area()
+```
+但是要注意：
+```c++
+Shape shape;//Error
+Shape *p = new Shape;//Error;
+auto sp = std::make_shared<Shape>();//Error
+std::shared_ptr<Shape> sp2 = std::make_shared<Rectangle>(p1,p2);//OK
+```
+只能够通过子类对象的声明来完成对他构建实例化
+
+### 纯虚函数与抽象类
+纯虚函数是一种特殊的虚函数，他在基类中声明但是没有具体的实现，并且要求所有的派生类必须提供自己的实现。
+
+而抽象类则是包含至少一个纯虚函数的类被称之为抽象类。抽象类不能被实例化
+
+### Make the interface robust,not error-prone
+```c++
+class Shape {
+public:
+    virtual double area() const {
+        return 0;
+    }
+};
+```
+在这个设计中，`Shape` 类提供了一个虚函数 `area()`，并且给出了一个默认实现（返回 `0`）。这种设计存在以下问题：
+
+- **隐式错误**：如果 `Shape::area()` 被意外调用，它将默默地返回 `0`，这可能会导致程序逻辑错误但不会抛出异常或给出任何错误提示。这种“沉默的”错误很难被发现和调试。
+- **不符合预期的行为**：`Shape` 作为一个基类，其目的是定义一个接口，要求所有派生类都必须实现 `area()` 方法。然而，当前的设计允许直接使用 `Shape` 实例，并且 `area()` 方法有一个默认实现，这违背了设计初衷。
+
+#### 改进接口设计
+
+为了使接口更加健壮，可以采用以下几种方法来改进设计：
+
+1. 使用纯虚函数
+
+将 `area()` 定义为纯虚函数，强制所有派生类实现该方法。
+
+```cpp
+class Shape {
+public:
+    virtual double area() const = 0; // 纯虚函数
+    virtual ~Shape() = default; // 虚析构函数
+};
+```
+
+- **优点**：
+  - **强制实现**：所有派生类必须实现 `area()` 方法，否则会导致编译错误。
+  - **避免默认行为**：没有默认实现，避免了意外调用基类方法的情况。
+
+- **缺点**：
+  - **不能实例化**：`Shape` 本身不能被实例化，只能作为基类使用。
+
+2. 提供显式的错误处理
+
+如果希望在基类中提供一个实现（例如，为了方便某些特殊情况下的使用），可以改为抛出异常，明确表示这是不应该发生的情况。
+
+```cpp
+class Shape {
+public:
+    virtual double area() const {
+        throw std::logic_error("area() called on Shape!");
+    }
+};
+```
+
+- **优点**：
+  - **显式错误**：如果 `Shape::area()` 被意外调用，会抛出异常，明确指出这是一个错误。
+  - **可选实现**：提供了默认实现，但在实际使用中会抛出异常，提醒开发者这是不应该发生的情况。
+
+- **缺点**：
+  - **运行时开销**：抛异常会有一定的运行时开销。
+  - **仍然可以实例化**：`Shape` 仍然可以被实例化，尽管这样做会导致异常。
+### More on the `is - a` relationship
+
+多态是面向对象编程中的一个核心概念，它允许使用一个接口来表示不同类型的实体。具体来说，多态可以通过运行时多态和编译时多态来实现。
+
+1. 多态的定义
+
+多态指的是提供单一接口来操作不同类型实体的能力，或者用单一符号来表示多种不同类型的机制。这使得代码更加灵活和可扩展。
+
+2. 运行时多态（Run-time Polymorphism）
+
+运行时多态通过动态绑定（dynamic binding）来实现。这意味着函数调用在运行时才确定具体要调用哪个函数实现。
+
+##### 示例代码解释
+
+```cpp
+struct Shape {
+    virtual void draw() const = 0; // 纯虚函数
+};
+
+void drawStuff(const Shape &s) {
+    s.draw(); // 动态绑定，根据 s 的实际类型调用相应的 draw() 实现
+}
+```
+
+- **Shape 结构体**：定义了一个纯虚函数 `draw()`，这意味着 `Shape` 是一个抽象基类，不能直接实例化。
+- **drawStuff 函数**：接受一个 `const Shape &` 类型的参数 `s`，并调用 `s.draw()`。这里的关键点在于 **动态绑定**：
+  - 如果 `s` 实际上是一个 `Circle` 类型的对象（假设 `Circle` 继承自 `Shape` 并实现了 `draw()`），则会调用 `Circle::draw()`。
+  - 如果 `s` 实际上是一个 `Square` 类型的对象（假设 `Square` 继承自 `Shape` 并实现了 `draw()`），则会调用 `Square::draw()`。
+
+这种机制允许我们在不知道具体类型的情况下，通过基类接口来操作不同类型的对象。
+
+3. 编译时多态（Compile-time Polymorphism）
+
+编译时多态通过函数重载（function overloading）、模板（templates）、概念（concepts, 自 C++20 起可用）等机制来实现。这些机制在编译阶段就决定了具体的函数实现。
+
+##### 示例代码解释
+
+```cpp
+template <typename T>
+concept Shape = requires(const T x) {
+    x.draw(); // 检查 T 类型是否有一个 draw() 成员函数
+};
+
+void drawStuff(Shape const auto &s) {
+    s.draw(); // 根据 s 的静态类型调用相应的 draw() 实现
+}
+```
+
+- **概念（Concept）**：`Shape` 是一个概念，它要求类型 `T` 必须有一个 `draw()` 成员函数。
+- **drawStuff 函数**：接受一个满足 `Shape` 概念的 `const auto &` 类型的参数 `s`，并调用 `s.draw()`。这里的关键点在于 **静态绑定**（或称早期绑定）：
+  - 如果 `s` 的静态类型是 `Circle`（假设 `Circle` 有一个 `draw()` 成员函数），则在编译时就确定调用 `Circle::draw()`。
+  - 如果 `s` 的静态类型是 `Square`（假设 `Square` 有一个 `draw()` 成员函数），则在编译时就确定调用 `Square::draw()`。
+
+这种机制在编译时就决定了具体的函数实现，因此通常比运行时多态更高效。
+在 C++ 中，纯虚函数（Pure Virtual Function）的主要目的是确保所有派生类都必须提供自己的实现。因此，纯虚函数通常没有默认实现。然而，在某些情况下，你可能希望为纯虚函数提供一个默认实现，以便在派生类中可以选择性地使用或覆盖这个默认实现。
+
+### 纯虚函数中的默认函数
+**分离默认实现到另一个函数**
+```cpp
+class Base {
+protected:
+    // 默认实现
+    void defaultFunc() const {
+        std::cout << "Default implementation" << std::endl;
+    }
+
+public:
+    virtual void func() const = 0; // 纯虚函数
+};
+
+class Derived : public Base {
+public:
+    void func() const override {
+        // 使用默认实现
+        defaultFunc();
+        // 或者添加其他逻辑
+        std::cout << "Derived implementation" << std::endl;
+    }
+};
+```
+
+- **`Base` 类**：
+  - `defaultFunc`：这是一个受保护的非虚函数，提供了默认实现。
+  - `func`：这是一个纯虚函数，要求所有派生类必须实现。
+
+- **`Derived` 类**：
+  - `func`：这是对 `Base::func` 的具体实现。在这个实现中，可以选择调用 `defaultFunc` 来使用默认行为，也可以添加额外的逻辑。
+
+### Separate default implementation from interface
+如果对于一个抽象类的子类而言，没有定义它的具体函数（抽象类中的纯虚函数），那么子类仍然会被解释成为抽象类，导致实例化报错。
+```c++
+class ModelC : public Airplane {
+public:
+  virtual void fly(const Airport &destination) {
+    // The "Model C way" of flying.
+    // Without the definition of this function, `ModelC` remains abstract,
+    // which does not compile if we create an object of such type.
+  }
+};
+```
+### 总结：
+- **非虚函数**指的是没有使用`virtual`关键字声明的成员函数，子类不能复写，直接在主程序中利用子类调用父类的非虚函数。
+- **纯虚函数**仅指定接口的继承，子类必须实现该接口，但基类不提供默认实现
+- **简单的虚函数**：指定接口的继承，同时包含一个默认实现。子类可以选择重写该默认实现，也可以直接使用基类提供的实现。
