@@ -811,6 +811,14 @@ v1 = v2;//copy
 ## 函数
 - 但是在c++中允许函数重名，但是需要能够通过传入值的不同（传递参数的个数/传递参数的类型）来区别，**注意返回值的不同不能够作为判断标准**
 - 同时和python 一样C++中的函数允许存在默认值，但是不能够像python一样通过关键字传参，因此，如果存在默认值的情况，只能够在参数的最后使用，在前面参数使用默认值而后面参数没有默认值的情况是没有效率的。
+### 函数的默认值
+```c++
+int fun(int a = 3, int b = 5);
+int x = 1,y = 2;
+fun();//fun(a = 3,b = 5);
+fun(x);//fun(a = 1,b = 5);
+fun(x,y);//fun(a = 1,b = 2);
+```
 ### `Lambda`函数与表达式
 C++11中提供了对匿名函数的支持，称为`Lambda`函数，`Lambda`将函数看成对象，比如可以将他们赋值给变量作为参数传递，还可以像函数一样对他求值。`[capture list] (parameter list) mutable(可选) exception(可选) -> return type(可选) { function body }`，其中`capture list`用于指定`lambda`函数中可以访问那些外部的变量，以及如何访问这一些变量（按值捕捉或者是按照引用捕捉）`mutable`表示的意思是按值捕捉的变量内容可以被修改（注意只是能够修改副本，如果没有这个`mutable`就不能够修改传递进来的副本的数值）`reutrn type`表示的是如果存在返回值那么返回值的类型是什么.
 - 几个注意事项
@@ -868,6 +876,119 @@ auto pos = std::find_if(
     - Better null pointer:`nullptr`
         - c++11 引入`nullptr`他的类型是`std::nullptr_t`既不是`void*`也不是整型，是更加纯粹的`nullptr`
         - 使用`nullptr`调用重载函数的时候:匹配更加明确`fun(nullptr)`必定匹配`func(int *)`避免了`NULL`可能引发的歧义问题。
+### Overload Resolution 
+- 确定候选函数
+  从候选函数集中筛选可行函数。当函数参数数量相同（这里针对单参数函数，参数数量都为 1 ）时，要求每个参数能通过至少一种隐式转换序列转换为传入的实参类型等情况。例如，传入实参为 `int` ，若函数参数为 `long` ， `int` 能隐式转换为 `long` ，则该函数可能属于可行函数；若无法进行合适隐式转换，就从可行函数集中排除.
+- 确定最佳可行函数
+  - 精确匹配： 实参和形参类型完全一致的函数优先匹配。
+```c++
+void f(int)
+int x = 42;// x is an lvalue
+f(x);// x turns to rvalue when passed by value
+```
+```c++
+void f(int *a);
+
+int ar[10];
+f(ar);
+```
+```c++
+// 函数到函数指针
+typedef int (*fp)(int);//定义了一个函数指针类型`fp`,它指向一个`int`参数，并且返回`int`类型
+void f(int , fp);//声明`f`,接受一个`int`和一个上述类型的指针。
+
+int g(int);//声明了函数`g`，在`f(5,g)`调用的时候，函数`g`会自动转换为函数指针传递给`f`
+f(5,g);
+```
+```c++
+// 从非const到const
+void g(const int *);
+int a = 5; int *p  = &a;
+g(p);
+```
+  - 提升转换： 如`char`到`int`，`float`到`double`等基本类型的提升转换，若精确匹配没有合适的函数，优先考虑能够提升转换的函数
+    - 例子：
+      - `char` -> `int`;`float` -> `double`
+      - `enum` -> `int`/`short`/`unsigned int`;
+      - `bool` -> `int`
+  - 标准类型转换：`int`到`long`等标准库定义的类型转换，在前面都不满足的时候考虑
+    - 例子： 
+      1. ```c++
+          void f(short);
+          unsigned int ui = 1000u;
+          f(ui);
+          ```
+      2. ```c++
+          void f(float);
+          double d = 3.1415926;
+          f(d);
+          ```
+      3. ```c++
+          void f(void*);
+          char* cp = nullptr;
+          f(cp);
+      4. ```c++
+            void f(bool);
+            int i = -1;
+            f(i);
+          ```
+### 重载解析失败
+- 考虑以下重载函数签名：
+  ```cpp
+  int fun(float a) { /*...*/ }  // 函数1
+  int fun(float a, float b) { /*...*/ }  // 函数2
+  int fun(float x, int y = 5) { /*...*/ }  // 函数3
+  ```
+- 在 `main` 函数中：
+  ```cpp
+  int main() {
+      float p = 4.5, t = 10.5;
+      int s = 30;
+
+      fun(p, s);  // 调用1
+      fun(t);  // 调用2
+      return 0;
+  }
+  ```
+- 调用1：可行函数：函数2和函数3
+- 调用1：最佳匹配 → 函数3
+- 调用2：可行函数：函数1和函数3
+- 调用2：存在歧义（没有唯一的最佳匹配）
+
+```c++
+int fun(int ,int,int);
+int fun(double,double,double);
+int main() {
+  fun(5,5,2.0);
+}
+```
+这个时候会产生歧义：F1,F2的调用都可以
+
+但是如果是：
+```c++
+int fun(int,int,double);
+int fun(int,double,double);
+
+int main(){
+  fun(5,5,5);
+}
+```
+这个地方中的`F1`,要比`F2`更好
+```c++
+int f();
+int f(int = 0);
+int f(int,int);
+
+int main(){
+  int x = 5,y = 6;
+
+  f();//error : call to `f` is ambiguous mathces both f() and f(int = 0)
+  f(x);
+  f(x,y);
+  return 0;
+}
+```
+- 也就是说，如果是这数的定义的中存在对于初始化默认值的构造，那么这个地方相当于传入了一个默认的参数，那么在调用相关函数的时候就可以不传入相关参数，这样就会导致默认参数所导致的函数的重载的问题。
 ## Class
 ### A Simple class
 ```c++
@@ -1742,6 +1863,59 @@ int main() {
   return 0;
 }
 ```
+### Transferrring Ownership
+1. **`.release()` 方法**
+
+**`.release()`** 方法的主要功能是将智能指针管理的原始指针释放给调用者，并将智能指针本身设置为 `nullptr`（即不再管理任何资源）。
+
+- **返回值**：返回当前智能指针所持有的原始指针。
+- **智能指针状态**：调用 `.release()` 后，智能指针会被设置为 `nullptr`，即它不再管理任何资源。
+
+**示例代码解释**：
+
+```cpp
+unique_ptr<int> x(new int(5));
+cout << "x: " << x.get() << endl;
+
+unique_ptr<int> y(x.release());  // x abdicates ownership
+```
+
+- **`x.release()`**：这行代码调用了 `x` 的 `.release()` 方法，将 `x` 管理的指针（指向值为 5 的 `int`）释放出来，并将 `x` 设置为 `nullptr`。
+- **`unique_ptr<int> y(x.release())`**：使用 `x.release()` 返回的指针来初始化一个新的 `unique_ptr` 对象 `y`。此时，`y` 接管了原来由 `x` 管理的资源。
+
+因此，执行上述代码后：
+
+- `x` 不再持有任何指针（`x.get()` 将返回 `nullptr`）。
+- `y` 持有指向值为 5 的 `int` 的指针。
+
+2. **`.reset()` 方法**
+
+**`.reset()`** 方法用于重置智能指针的状态，具体行为如下：
+
+- **参数**：可以接受一个新指针 `p` 作为参数。
+- **行为**：
+  - **删除当前指针**：如果智能指针当前持有某个指针，则会先删除该指针所指向的对象（调用其析构函数并释放内存）。
+  - **接管新指针**：然后，智能指针会接管传入的新指针 `p`，开始管理 `p` 所指向的资源。
+
+**示例代码解释**：
+
+```cpp
+unique_ptr<int> z(new int(10));
+z.reset(y.release());  // z takes ownership, deletes old
+```
+
+- **`unique_ptr<int> z(new int(10))`**：创建一个 `unique_ptr` 对象 `z`，它管理一个指向值为 10 的 `int` 的指针。
+- **`z.reset(y.release())`**：
+  - **`y.release()`**：首先调用 `y` 的 `.release()` 方法，将 `y` 管理的指针（指向值为 5 的 `int`）释放出来，并将 `y` 设置为 `nullptr`。
+  - **`z.reset(...)`**：然后，将 `z` 的 `.reset()` 方法应用于 `y.release()` 的返回值（即指向值为 5 的 `int` 的指针）。
+    - **删除旧指针**：`z` 会先删除其当前管理的指针（即指向值为 10 的 `int` 的指针），释放该 `int` 对象的内存。
+    - **接管新指针**：然后，`z` 开始管理 `y.release()` 返回的指针（即指向值为 5 的 `int` 的指针）。
+
+因此，执行上述代码后：
+
+- `z` 现在持有指向值为 5 的 `int` 的指针（原 `y` 管理的资源）。
+- 原先 `z` 管理的值为 10 的 `int` 对象已被删除。
+
 ## 别名
 - C中的别名：`typedef long long LL;`
 - C++中的别名`using LL = long long;`
@@ -1966,7 +2140,6 @@ int main() {
   return 0;
 }
 ```
-
 ## User-defined type conversions
 - 底层逻辑：一个类中恰好有一个参数类型是`T`的构造函数，可实现从`T`到`X`的类型转换。实例`std::string`有一个接受`const char*`的构造函数，因此`const char*`可以隐式转换成为`std::string`;
 ```c++
@@ -2411,3 +2584,81 @@ std::copy(a.begin(), a.end(), c.begin()); // 未定义行为！c 无足够空间
 - **`unique(begin, end)`**：  
   - 要求区间 `[begin, end)` 内的元素 **已排序**（默认升序）。  
   - 它不会真正删除重复元素，而是将重复元素移动到区间末尾，并返回一个迭代器 `pos`，使得 `[begin, pos)` 内没有重复元素。例如，对于已排序的序列，它会整理出不重复的前端子序列。 
+## Copy-Swap Idiom
+### `std::sqap - CppReference`
+- 函数定义：`template<class T> void swap(T&a , T&b);`这是一个模板函数，用于交换两个变量`a`,`b`
+- 功能说明：
+  - 交换给定的`a`，`b`
+  - 模板参数的`T`必须满足移动构造和移动复制构造的要求
+```c++
+#include <iostream>
+#include <algorithm>
+
+class MyClass {
+public:
+    int value;
+    MyClass(int val) : value(val) {}
+};
+
+int main() {
+    MyClass obj1(1), obj2(2);
+    std::cout << "Before swap: obj1.value = " << obj1.value << ", obj2.value = " << obj2.value << std::endl;
+    std::swap(obj1, obj2); // 利用默认拷贝语义交换
+    std::cout << "After swap: obj1.value = " << obj1.value << ", obj2.value = " << obj2.value << std::endl;
+    return 0;
+}
+```
+- 与临时变量交换方法的对比：
+  - 传统临时变量的交换方法如：`auto temp = a;a = b;b = temp;`，这里要求`T`必须支持拷贝构造和拷贝赋值，但是对于`T`的限制较少，只要`T`满足基本的拷贝操作，无论是否支持移动语义，都能工作。而`std::swap`对移动语义的要求更高。若`T`不可复制，可用`auto temp = std::move(a)`等方式替换传统临时变量交换，同时指出传统临时变量的方法更加通用。（因此这种方式的适用范围更广）
+
+- 关于`noexcept`的声明：
+  ```cpp  
+  template<class T>  
+  void swap(T& a, T& b) noexcept(  
+      std::is_nothrow_move_constructible<T>::value &&  
+      std::is_nothrow_move_assignable<T>::value  
+  );  
+  ```  
+  其中，`noexcept` 后的条件通过 `std::is_nothrow_move_constructible<T>::value` 检查类型 `T` 是否支持 **不抛出异常的移动构造**，通过 `std::is_nothrow_move_assignable<T>::value` 检查类型 `T` 是否支持 **不抛出异常的移动赋值**。只有这两个条件都满足时，`swap` 函数才会声明为 `noexcept`，即保证不抛出异常。  
+
+### Swap Dynarray
+定义了一个 `Dynarray` 类，包含一个友元函数 `swap`：  
+```cpp  
+class Dynarray {  
+public:  
+    friend void swap(Dynarray &a, Dynarray &b) noexcept {  
+        using std::swap;  
+        swap(a.m_storage, b.m_storage);  
+        swap(a.m_length, b.m_length);  
+    }  
+};  
+```  
+- **`noexcept` 修饰**：函数声明为 `noexcept`，表示该函数具有异常安全性。前提是 `Dynarray` 支持移动赋值或移动构造（确保交换操作不会抛出异常）。  
+- **`using std::swap`**：确保调用 `swap(...)` 时优先匹配最佳实现。若存在自定义重载的 `swap`，则调用对应的重载版本；若没有，则调用 `std::swap`。这样能灵活适配不同类型的成员交换，保证代码的通用性和高效性。  
+- 要点解释  
+1. **异常安全性**：`Dynarray::swap` 标记为 `noexcept`，因为假设 `Dynarray` 支持移动语义（移动构造或移动赋值），确保交换操作不会抛出异常。  
+2. **最佳匹配原则**：`using std::swap` 让编译器在调用 `swap` 时，优先选择最合适的实现（无论是自定义重载还是标准库的 `std::swap`），提升代码的灵活性和适配性。  
+#### 在运算符重载中使用
+这张图片展示了“复制 - 交换惯用法（Copy - and - Swap Idiom）”在赋值运算符中的应用，具体内容如下：  
+```cpp  
+class Dynarray {  
+public:  
+    Dynarray &operator=(const Dynarray &other) {  
+        auto tmp = other; // 调用拷贝构造函数复制other  
+        swap(*this, tmp); // 交换当前对象与tmp的资源  
+        return *this;  
+    }  
+};  
+
+~~Dynarry~~ &operator=(Dynarray other) noexcept {  
+    swap(*this, other);  
+    return *this;  
+}  
+```  
+- 赋值运算符 `operator=` 的参数 `Dynarray other` 按值传递，这会触发拷贝构造（若传入左值）或移动构造（若传入右值）。  
+- 接着通过 `swap(*this, other)` 交换当前对象与临时对象 `other` 的成员，确保异常安全（若构造 `other` 时抛出异常，原对象状态不受影响）。  
+
+- **强异常安全性（Strong exception safety）**：若复制过程失败，左侧对象状态不受影响。因为该惯用法先复制出一个副本，再交换资源，复制失败时原对象未被修改。  
+- **隐式自赋值安全性（Implicit self - assignment safety）**：若进行自赋值（如 `a = a`），交换自身副本不会产生实际影响，避免了潜在错误。  
+- **最小化代码重复（Minimal code duplication）**：通过按值传递参数重用拷贝构造函数（复制对象），并利用 `swap` 函数交换资源，减少代码冗余。  
+- **统一处理拷贝和移动赋值（Unified copy and move assignment）**：单个按值传递的 `operator=` 可同时处理拷贝和移动赋值。左值传入时调用拷贝构造，右值传入时调用移动构造，实现二者的统一。  
