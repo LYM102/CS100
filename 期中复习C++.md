@@ -479,7 +479,56 @@ void baz(const int x); // 错误：顶层 const 不影响函数签名
 
 - 4️⃣ 用户自定义转换（User-defined Conversion）
 - 如类类型之间的隐式转换（构造函数或类型转换运算符）。
+### Constuctors of containers
+- `Container c(b,e)`,其中`[b,e)`是一个迭代器的范围
+- `Container c(n,x)`,其中`n`是一个非负的整数，而且`x`是一个数值，表示有`n`个`x`.
+- `Container c(n)`其中`n`是个非负整数，同时此时所有的元素都初始化为空
+### A brief Inro to other containers
+- `std::vector<T>`:是连续的内存地址的构成：`v[0],v[1],v[2],....`
+- `std::deque<T>`:`....d[0],d[1],...`所以在`duque`之后就可以`push_front`,`pop_front`,`push_back`,`pop_back`
+- `std::array<T,N>`:几乎与C语言中的`T[N]`相类似，但是`T`并不会退化成为一个指针。同时存在`.at(i)`,`.front()`,`.back()`,`.size()`的内容。
+- `std::list<T>`,`std::forward_list<T>`,这两种都是属于通过`next()`指针相互连接的过程，因此不能够通过`.operator[]`来进行获取相应的元素。
+## `std::set`
+### `set`的定义
+- `std::set<T>`中要求`T`中一定要存在`.operator<(const T,const T)`
+- `std::set<T,Cmp>`,这里`Cmp`表示的是一个用于排序依据的函数，默认的是从小到大的顺序。
+```cpp
+std::set s{3, 2, 5, 5, 1};          // {1, 2, 3, 5}. The duplicate 5 is removed.
+std::cout << s.size() << std::endl; // 4
+s.insert(42);                       // {1, 2, 3, 5, 42}
+s.insert(42);                       // Nothing is inserted. (No errors.)
+int a[]{10, 20, 30};
+s.insert(a, a + 3); // An iterator range.
+// s now contains {1, 2, 3, 5, 10, 20, 30, 42}.
+s.insert({11, 12}); // {1, 2, 3, 5, 10, 11, 12, 20, 30, 42}
+```
+### `std::set`:Traversal
+```cpp
+std::set<int> s{5, 5, 7, 3, 20, 12, 42};
+for (auto x : s)
+  std::cout << x << ' ';
+std::cout << std::endl; // 3, 5, 7, 12, 20, 42
 
+// Equivalent
+for (auto it = s.begin(); it != s.end(); ++it)
+  std::cout << *it << ' ';
+std::cout << std::endl;
+```
+### 插入元素
+- `insert(x)`与`emplace(x)`的插入
+  - 两者都是向`set`中插入一个元素，同时返回一个`std::pair<iterator,bool>`，其中如果成功的时候`.first`指向的是指向插入元素的迭代器，如果失败的话（有重复的元素），就会返回一个指向原来的`set`中已经存在的重复元素的迭代器。
+  - 但是`insert(x)`是创建一个`x`同时插入它的一个副本，但是`emplace`则是直接在其中构造一个新的元素。
+### 删除元素
+和其他的stl一样：
+- `s.erase(x)`：删除与 `x` 相等的元素（若存在），返回 0（未删除）或 1（已删除）。
+- `s.erase(pos)`：删除迭代器 `pos` 指向的元素。
+- `s.erase(begin, end)`：删除迭代器范围 `[begin, end)` 内的元素。
+```cpp
+std::set<int> s{5, 5, 7, 3, 20, 12, 42};
+std::cout << s.erase(42) << std::endl; // 42 is removed. output: 1
+// s is now {3, 5, 7, 12, 20}.
+s.erase(++++s.begin()); // 7 is removed.
+```
 ## Class
 ### 三五原则
 ```c++
@@ -1527,6 +1576,25 @@ std::vector<char> v = {'a','b','c','d'};
 std::vector v2(v.begin(),v.end()-1);
 std::string s(v.begin()+1,v.end());
 ```
+### Iterator的作用
+在c++中不同的容器访问每一个元素的方式都不一定是相同的，例如`list`不能够通过`[]`来访问元素，但是如果你使用`std::begin()`或者是`std::end()`就可以在不同的容器中使用
+```cpp
+for(auto it = std::being(c); it!=std::end();it++){
+  do_something(*it);
+}
+```
+
+同时很多的`algorithms`中也需要迭代器的传入
+```cpp
+// assign every element in `a` with the value `x`.
+std::fill(a.begin(), a.end(), x);
+// sort the elements in `b` in ascending order.
+std::sort(b.begin(), b.end());
+// find the first element in `b` that is equal to `x`.
+auto pos = std::find(b.begin(), b.end(), x);
+// reverse the elements in `c`.
+std::reverse(c.begin(), c.end());
+```
 
 ## Algorithms
 定义对象
@@ -1675,7 +1743,7 @@ std::vector<int> c{};
 std::copy(a.begin(), a.end(), b.begin()); // 合法操作，b 有足够空间容纳复制的元素  
 std::copy(a.begin(), a.end(), c.begin()); // 未定义行为！c 无足够空间，算法不会自动调整容器大小  
 ```
-#### 常见分类
+### 是否修改？
 ##### 1. 非修改性序列操作（Non - modifying sequence operations）  
 这类算法不会修改容器中的元素，仅用于查找或统计：  
 - **`count(begin, end, x)`**：统计区间 `[begin, end)` 内等于 `x` 的元素个数。  
@@ -1696,6 +1764,19 @@ std::copy(a.begin(), a.end(), c.begin()); // 未定义行为！c 无足够空间
 - **`unique(begin, end)`**：  
   - 要求区间 `[begin, end)` 内的元素 **已排序**（默认升序）。  
   - 它不会真正删除重复元素，而是将重复元素移动到区间末尾，并返回一个迭代器 `pos`，使得 `[begin, pos)` 内没有重复元素。例如，对于已排序的序列，它会整理出不重复的前端子序列。 
+
+### An example
+```cpp
+auto getRank(const std::vector<int> &data) {
+  auto tmp = data;
+  std::sort(tmp.begin(), tmp.end());              // sort
+  auto pos = std::unique(tmp.begin(), tmp.end()); // drop duplicates
+  auto ret = data;
+  for (auto &x : ret)
+    x = std::lower_bound(tmp.begin(), pos, x) - tmp.begin(); // binary search
+  return ret;
+}
+```
 
 ## Inheritantce
 ```c++
@@ -2321,7 +2402,48 @@ void drawStuff(Shape const auto &s) {
 在 C++ 中，纯虚函数（Pure Virtual Function）的主要目的是确保所有派生类都必须提供自己的实现。因此，纯虚函数通常没有默认实现。然而，在某些情况下，你可能希望为纯虚函数提供一个默认实现，以便在派生类中可以选择性地使用或覆盖这个默认实现。
 
 ### 纯虚函数中的默认函数
-**分离默认实现到另一个函数**
+1. **在纯虚函数中实现默认化**
+```cpp
+#include <iostream>
+
+// 抽象类
+class Base {
+public:
+    // 纯虚函数，带有默认实现
+    virtual void pureVirtualFunction() = 0 {
+        std::cout << "Default implementation of pureVirtualFunction in Base" << std::endl;
+    }
+};
+
+// 派生类
+class Derived : public Base {
+public:
+    // 使用基类的默认实现
+    void pureVirtualFunction() override {
+        Base::pureVirtualFunction();
+    }
+};
+
+// 另一个派生类
+class AnotherDerived : public Base {
+public:
+    // 提供自己的实现
+    void pureVirtualFunction() override {
+        std::cout << "Custom implementation of pureVirtualFunction in AnotherDerived" << std::endl;
+    }
+};
+
+int main() {
+    Derived derived;
+    derived.pureVirtualFunction();
+
+    AnotherDerived anotherDerived;
+    anotherDerived.pureVirtualFunction();
+
+    return 0;
+}
+```
+2. **分离默认实现到另一个函数**
 ```cpp
 class Base {
 protected:
@@ -2353,7 +2475,7 @@ public:
   - `func`：这是对 `Base::func` 的具体实现。在这个实现中，可以选择调用 `defaultFunc` 来使用默认行为，也可以添加额外的逻辑。
 
 ### Separate default implementation from interface
-如果对于一个抽象类的子类而言，没有定义它的具体函数（抽象类中的纯虚函数），那么子类仍然会被解释成为抽象类，导致实例化报错。
+如果对于一个抽象类的子类而言，没有定义它的具体函数，那么子类仍然会被解释成为抽象类，导致实例化报错。
 ```c++
 class ModelC : public Airplane {
 public:
@@ -2365,6 +2487,6 @@ public:
 };
 ```
 ### 总结：
-- **非虚函数**指的是没有使用`virtual`关键字声明的成员函数，子类不能复写，直接在主程序中利用子类调用父类的非虚函数。
-- **纯虚函数**仅指定接口的继承，子类必须实现该接口，但基类不提供默认实现
-- **简单的虚函数**：指定接口的继承，同时包含一个默认实现。子类可以选择重写该默认实现，也可以直接使用基类提供的实现。
+- **非虚函数**指的是没有使用`virtual`关键字声明的成员函数，子类不能复写，直接在主程序中利用子类调用父类的非虚函数.
+- **纯虚函数**仅指定接口的继承，子类必须实现该接口，但基类不提供默认实现.
+- **简单的虚函数**：指定接口的继承，同时包含一个默认实现。子类可以选择重写该默认实现，也可以直接使用基类提供的实现.
