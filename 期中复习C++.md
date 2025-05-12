@@ -164,15 +164,39 @@ b++;//UB
 auto str = "hello"//`const char*`
 const int x = 10;
 auto y = x//`int`Not`const int`!!
-auto&py = x;//`const int&`!!
+auto &py = x;//`const int&`!!
 auto *ptry = &x;//`const int*`
 ```
 - `auto`不会保留顶层的`const`
 - 只有在`auto &`,`auto *`的情况的时候才会保留`const`
+- 同样的`auto`不会保留引用，会自动进行复制构造。
 - `auto str = "hello"`中`auto`是`const char*`
 - `decltype(x) y = 10;`如果`x`是`int`则会有`int y = 10;`如果`x`是`double`则会有`double y = 10;`但是如果`decltyoe(foo(x))`这里的`foo`函数并不会被调用，这里完全是计算机基于代码推测的。
 - 同时`auto`也不会对于`int`类型的越界有所操作
+```cpp
+struct Data{
+  Data(size_t s){}
+  Data(const Data &){}
+  Data(Data&&){}
 
+  size_t s;
+  int *b;
+}
+
+const Data getData(size_t s){
+  return Data(s);
+}
+```
+```cpp
+auto d1 = Data(42);
+auto d2 = std::move(d1);
+auto d3 = getData(42);
+auto d4 = std::move(getData(42));
+```
+- 我们来看一下这一段代码
+1. `auto d1 = Data(42)`,这里`auto`为`Data`这里调用了构造函数。
+2. `auto d2 = std::move(d1);`，这里`auto`为`Data`同样的这里调用了移动构造函数。
+3. `auto d3 = getData(42);`,这里`getData(42)`返回了一个`const Data`但是因为`auto`会自动
 ## `string`
 ### `string`的初始化
 ```c++
@@ -325,6 +349,19 @@ int main(){
    std::cout<<*ptrRef<<std::endl; 
 }
 ```
+- **同样地存在这种“引用的引用”**
+```cpp
+#include <iostream>
+
+int main() {
+  int a = 42;
+  int &b = a;
+  int &c = b;
+  b = 40;
+  std::cout << a << std::endl << b << std::endl << c;
+}
+```
+[解释]：`c`仍然是`a`的引用，因为`b`就是`a`的别名，所以其实`a`,`b`,`c`都表示同一个内存中的整数变量。
 - 传递引用加快速度
 ```c++
 int count_lowercase(const std::string &str) {
@@ -354,6 +391,11 @@ int &r2 = i*42;//Error! 左值引用也不能绑定在右值上
 const int &cr2 = i*42;//Correct!
 int &&rr3 = i*42;//Correct!
 ```
+### 关于左值和右值以及左值引用和右值引用
+- 几个关键点：
+1. `i++`是右值但是`++i`是左值
+2. `ptr`是一个指针，那么`*ptr`是左值，同时`*&ptr`是左值，但是`&*ptr`是右值（返回的地址并不是原来的地址）
+3. 左值引用和右值引用是有范围限定的，如果讲右值引用传入一个函数中，那么此引用将从右值引用变成左值引用，同时你也可以在函数中写上它的引用（这并不与）
 ## `<vector>` in C++
 ### Define and Basic use
 ```c++
@@ -408,6 +450,14 @@ int x = 1,y = 2;
 fun();//fun(a = 3,b = 5);
 fun(x);//fun(a = 1,b = 5);
 fun(x,y);//fun(a = 1,b = 2);
+```
+### 函数的传值方式
+```cpp
+void fun(P p)
+int & x = 1;
+fun(x);//此时的引用会被忽略，函数x的类型为int.
+
+//但是如果在函数的定义的时候明确了fun(P &p)的话，x的类型为int &
 ```
 ### `Lambda`函数与表达式
 C++11中提供了对匿名函数的支持，称为`Lambda`函数，`Lambda`将函数看成对象，比如可以将他们赋值给变量作为参数传递，还可以像函数一样对他求值。`[capture list] (parameter list) mutable(可选) exception(可选) -> return type(可选) { function body }`，其中`capture list`用于指定`lambda`函数中可以访问那些外部的变量，以及如何访问这一些变量（按值捕捉或者是按照引用捕捉）`mutable`表示的意思是按值捕捉的变量内容可以被修改（注意只是能够修改副本，如果没有这个`mutable`就不能够修改传递进来的副本的数值）`reutrn type`表示的是如果存在返回值那么返回值的类型是什么.
@@ -529,6 +579,52 @@ std::cout << s.erase(42) << std::endl; // 42 is removed. output: 1
 // s is now {3, 5, 7, 12, 20}.
 s.erase(++++s.begin()); // 7 is removed.
 ```
+### 查找元素
+- `s.find(x)`返回指向这个元素的迭代器，但是如果没有找到的话返回`s.end()`
+- 和`list`一样`set`使用的是红黑树的储存方式，因此不能够使用`[]`的形式调用获得某个位置的元素，但是能够通过`.next()`来获得。
+## `std::map`
+- `std::map<Key,Value>`同时存在两个参数`Key`,`Value`,其实他是`set`的扩展情况，如果忽略掉`value`，那么单独储存的`Key`就可以看成是一个`std::set<Key>`.
+- 由上我们不难发现`value`存在一定的要求，`operator<(const Key,const Key)`是被要求的，同时元素`Key`的顺序是有按照升序进行排序的。
+- `Key`不能够直接修改。
+- `std::map`中的内容其实相当于`std::pair<cosnt Key,Value>`,也就是如果使用迭代器去迭代`map`返回的迭代器是`*iter = std::pair<const Key,Value> &`
+### `constructor` in `map`
+- `std::map<Key,Value> m{{key1,value1},{key2,value2},....};`
+- `std::map<key,value> m(begin,end)`但是这里的`m`一定要是成对的
+```cpp
+std::vector<std::pair<int,int>> v{{1,2},{3,4}};
+std::map<int,int> m(v.begin().v.end());
+```
+### `Insertion` in `map`
+```cpp
+m.insert({key,value})
+m.insert({{key1,value1},{key2,value2},...})
+m.insert(begin,end)
+```
+### `Deletion` in `map`
+- `m.erase(pos)`,`m.erase(begin,end)`和之前的`set`相同，只是一个是删除一个对象一个是删除一对对象
+- `m.erase(key_1)`，`key`是`key_1`的对象
+### `std::pair` in `std::map`
+```cpp
+std::map<std::string,int> counter = someValue();
+for(auto it = counter.begin();it!=counter.end(),++it){
+  std::cout<<it->first<<std::endl<<it->second<<std::endl;
+}
+```
+虽然`std::pair`需要一个头文件，但是在`<map>`中已经包括了这个头文件，所以我们不需要重复包括这个头文件就可以使用`std::pair`
+### `base-range-for` loop
+```cpp
+for(const auto &kvpair : counter)
+  std::cout<< kvpiar.first << ...<< kvpair.second << std::endl;
+```
+同样的在`c++.17`中还存在一种方式
+```cpp
+for(const auto &word,occ:counter)
+  std::cout<<word << std::endl <<occ<<std::endl;
+```
+### `map`中的`[]`
+- `m[key.x]`表示的是找到`key`为`key.x`的对象的`value`
+- 和`set`一样，`map`中一样存在有`m.find(key)`,`m.count(key)`
+- 两者的不同之处，如果在`m[key]`中没有`key`这个Key，那么会创造一个`key`，但是相反的是如果`m.find(key)`中没有找到相关元素，他斌不会创建一个，而是会直接报错。
 ## Class
 ### 三五原则
 ```c++
